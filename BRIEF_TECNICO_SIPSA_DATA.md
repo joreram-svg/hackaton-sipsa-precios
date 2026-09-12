@@ -2,6 +2,15 @@
 
 Ejecutor: Codex. Tiempo total: 4 h. Este documento es autónomo.
 
+## 0-A. ACTUALIZACIÓN (aprobada por el técnico) — Esquema simplificado
+
+Cambio de alcance sobre este brief: **se elimina la dimensión `mercado`** (no habrá `dim_mercado` ni `mercado_id`). El dato queda a nivel de **`fecha, producto, precio, ciudad`** únicamente. Todo lo que en las secciones 4, 6 y 7 hace referencia a `mercado_id`/`dim_mercado`/`comparar_mercados` se reemplaza por `ciudad` directamente (ya no hay comparación entre mercados de una misma ciudad, sino entre ciudades). Concretamente:
+- `fact_precio(fecha, producto_id, ciudad, precio, fuente, ingested_at)` — PK `(fecha, producto_id, ciudad)`. Se elimina `dim_mercado`, `mercado_id`, `precio_min`, `precio_max` (mantener solo `precio`, promedio semanal).
+- Cualquier adaptador (`excel_dane`, `soap_dane`, `socrata`, `seed`) que produzca varios mercados por ciudad debe promediarlos antes de insertar (agregación a nivel ciudad).
+- Endpoints y tools MCP: donde el contrato pida `mercado_id`, usar `ciudad` en su lugar; `GET /v1/mercados` y `comparar_mercados` se renombran a `GET /v1/ciudades` y `comparar_ciudades(producto_id) -> [{ciudad, precio_actual, var_1w_pct}]`.
+- Vistas analíticas (`v_variacion`, `v_percentil`, `v_tendencia`) agrupan por `(producto_id, ciudad)` en vez de `(producto_id, mercado_id)`.
+- El resto del brief (fórmulas de score, plan de 4h, criterios de aceptación) aplica igual, solo sustituyendo `mercado_id` por `ciudad`.
+
 ## 0. Objetivo
 Construir el servicio `sipsa-data`: ingesta de precios mayoristas de alimentos del DANE (SIPSA), almacenamiento histórico, capa analítica y exposición vía REST + MCP para que otros agentes (consumidor / restaurante / mayorista) consuman señales de precio. Debe funcionar en demo aunque el DANE esté caído (modo `seed`).
 
