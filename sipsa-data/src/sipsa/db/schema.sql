@@ -5,21 +5,14 @@ CREATE TABLE IF NOT EXISTS dim_producto (
   unidad_base VARCHAR NOT NULL DEFAULT 'kg',
   alias JSON
 );
-CREATE TABLE IF NOT EXISTS dim_mercado (
-  mercado_id VARCHAR PRIMARY KEY,
-  nombre VARCHAR NOT NULL,
-  ciudad VARCHAR NOT NULL
-);
 CREATE TABLE IF NOT EXISTS fact_precio (
   fecha DATE NOT NULL,
   producto_id VARCHAR NOT NULL,
-  mercado_id VARCHAR NOT NULL,
-  precio_prom DOUBLE NOT NULL,
-  precio_min DOUBLE,
-  precio_max DOUBLE,
+  ciudad VARCHAR NOT NULL,
+  precio DOUBLE NOT NULL,
   fuente VARCHAR NOT NULL,
   ingested_at TIMESTAMP DEFAULT now(),
-  PRIMARY KEY (fecha, producto_id, mercado_id)
+  PRIMARY KEY (fecha, producto_id, ciudad)
 );
 CREATE TABLE IF NOT EXISTS fact_abastecimiento (
   fecha DATE NOT NULL,
@@ -41,4 +34,3 @@ CREATE TABLE IF NOT EXISTS ingest_log (
   status VARCHAR,
   error VARCHAR
 );
-

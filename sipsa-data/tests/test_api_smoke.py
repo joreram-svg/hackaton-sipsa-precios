@@ -11,7 +11,7 @@ from sipsa.api.main import app, get_repo
 class FakeRepository:
     item = {
         "producto_id": "papa_pastusa", "nombre": "Papa pastusa", "categoria": "tuberculos",
-        "mercado_id": "bogota_corabastos", "precio_actual": 2400.0, "precio_1w": 2500.0,
+        "ciudad": "Bogotá", "precio_actual": 2400.0, "precio_1w": 2500.0,
         "precio_4w": 2800.0, "var_1w_pct": -0.04, "var_4w_pct": -0.1429,
         "percentil_hist": 0.12, "score": 82.0, "senal": "COMPRAR",
         "razon": "14% más barata que hace un mes y en el 12% más bajo de 2 años",
@@ -19,18 +19,15 @@ class FakeRepository:
 
     def health(self):
         return {"status": "ok", "fuente_activa": "seed", "ultima_fecha": date(2026, 9, 7),
-                "semanas_disponibles": 104, "pct_seed": 100.0, "productos": 40, "mercados": 5}
+                "semanas_disponibles": 104, "pct_seed": 100.0, "productos": 40, "ciudades": 3}
 
     def list_products(self, categoria=None):
         return [{"producto_id": "papa_pastusa", "nombre": "Papa pastusa", "categoria": "tuberculos", "unidad_base": "kg"}]
 
-    def list_markets(self, ciudad=None):
-        return [{"mercado_id": "bogota_corabastos", "nombre": "Corabastos", "ciudad": "Bogotá"}]
+    def list_cities(self):
+        return [{"ciudad": "Bogotá"}]
 
-    def default_market(self, city="Bogotá"):
-        return "bogota_corabastos"
-
-    def price_history(self, producto_id, mercado_id, desde=None, hasta=None, semanas=None):
+    def price_history(self, producto_id, ciudad="Bogotá", desde=None, hasta=None, semanas=None):
         start = date(2025, 8, 4)
         rows = [{"fecha": start + timedelta(weeks=i), "precio_prom": 2200.0 + i * 5,
                  "precio_min": 2100.0, "precio_max": 2400.0, "fuente": "seed"} for i in range(58)]
@@ -40,18 +37,18 @@ class FakeRepository:
         item = {**self.item, "senal": "EVITAR" if ascending else "COMPRAR"}
         return {"fecha": date(2026, 9, 7), "ciudad": city, "perfil": perfil, "items": [item] * min(top, 5)}
 
-    def trend(self, producto_id, mercado_id=None, semanas=12):
-        return {"producto_id": producto_id, "mercado_id": mercado_id or self.default_market(),
+    def trend(self, producto_id, ciudad="Bogotá", semanas=12):
+        return {"producto_id": producto_id, "ciudad": ciudad,
                 "serie": [{"fecha": date(2026, 9, 7), "precio_prom": 2400.0}],
                 "var_1w_pct": -0.04, "var_4w_pct": -0.1429, "var_52w_pct": 0.03,
                 "percentil_hist": 0.12, "pendiente_pct_sem": -1.2}
 
     def alerts(self, city="Bogotá", threshold=15, window="1w"):
         return {"fecha": date(2026, 9, 7), "alertas": [{"producto_id": "tomate_chonto", "nombre": "Tomate chonto",
-                "mercado_id": "bogota_corabastos", "var_pct": 0.18, "direccion": "SUBE", "precio_actual": 4200.0}]}
+                "ciudad": city, "var_pct": 0.18, "direccion": "SUBE", "precio_actual": 4200.0}]}
 
     def compare(self, producto_id):
-        return [{"mercado_id": "bogota_corabastos", "ciudad": "Bogotá", "precio_actual": 2400.0, "var_1w_pct": -0.04}]
+        return [{"ciudad": "Bogotá", "precio_actual": 2400.0, "var_1w_pct": -0.04}]
 
 
 def test_todos_los_get_contractuales_responden_200():
@@ -59,7 +56,7 @@ def test_todos_los_get_contractuales_responden_200():
     app.dependency_overrides[get_repo] = lambda: FakeRepository()
     client = TestClient(app)
     urls = [
-        "/v1/health", "/v1/productos", "/v1/mercados",
+        "/v1/health", "/v1/productos", "/v1/ciudades",
         "/v1/precios?producto_id=papa_pastusa",
         "/v1/oportunidades", "/v1/evitar",
         "/v1/tendencia/papa_pastusa", "/v1/forecast/papa_pastusa",
@@ -113,7 +110,7 @@ def test_mcp_registra_ocho_tools_y_mejores_precios_responde(monkeypatch):
     server = importlib.import_module("sipsa.mcp.server")
     expected = {
         "listar_productos", "mejores_precios", "productos_a_evitar", "tendencia_producto",
-        "pronostico_producto", "alertas_precio", "resumen_semanal", "comparar_mercados",
+        "pronostico_producto", "alertas_precio", "resumen_semanal", "comparar_ciudades",
     }
     assert set(server.mcp.tools) == expected
     monkeypatch.setattr(server, "get_repository", lambda: FakeRepository())

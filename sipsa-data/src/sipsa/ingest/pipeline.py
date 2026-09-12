@@ -9,19 +9,51 @@ from sipsa.config import PROJECT_ROOT, Settings, get_settings
 from sipsa.sources.seed import SeedAdapter
 
 
+VIEW_NAMES = ("v_tendencia", "v_percentil", "v_variacion", "v_ultima_semana")
+
+
+def _columns(conn, table: str) -> set[str]:
+    return {row[1] for row in conn.execute(f"PRAGMA table_info('{table}')").fetchall()}
+
+
+def _migrate_legacy_market_schema(conn) -> None:
+    tables = {row[0] for row in conn.execute("SHOW TABLES").fetchall()}
+    if "fact_precio" not in tables or "mercado_id" not in _columns(conn, "fact_precio"):
+        return
+    for view in VIEW_NAMES:
+        conn.execute(f"DROP VIEW IF EXISTS {view}")
+    conn.execute("ALTER TABLE fact_precio RENAME TO fact_precio_legacy")
+    conn.execute((PROJECT_ROOT / "src" / "sipsa" / "db" / "schema.sql").read_text(encoding="utf-8"))
+    if "dim_mercado" in tables:
+        city_expression = "coalesce(m.ciudad, f.mercado_id)"
+        join = "LEFT JOIN dim_mercado m USING(mercado_id)"
+    else:
+        city_expression = "f.mercado_id"
+        join = ""
+    conn.execute(
+        f"""
+        INSERT INTO fact_precio(fecha, producto_id, ciudad, precio, fuente, ingested_at)
+        SELECT f.fecha, f.producto_id, {city_expression}, avg(f.precio_prom),
+               coalesce(arg_max(f.fuente, f.ingested_at), 'legacy'), max(f.ingested_at)
+        FROM fact_precio_legacy f {join}
+        GROUP BY f.fecha, f.producto_id, {city_expression}
+        """
+    )
+    conn.execute("DROP TABLE fact_precio_legacy")
+    conn.execute("DROP TABLE IF EXISTS dim_mercado")
+
+
 def initialize_database(settings: Settings | None = None) -> None:
     settings = settings or get_settings()
     Path(settings.db_path).parent.mkdir(parents=True, exist_ok=True)
     with duckdb.connect(str(settings.db_path)) as conn:
+        _migrate_legacy_market_schema(conn)
         conn.execute((PROJECT_ROOT / "src" / "sipsa" / "db" / "schema.sql").read_text(encoding="utf-8"))
-        conn.execute((PROJECT_ROOT / "src" / "sipsa" / "db" / "views.sql").read_text(encoding="utf-8"))
         productos = pd.read_csv(PROJECT_ROOT / "src" / "sipsa" / "catalog" / "productos.csv")
         productos["alias"] = productos["alias"].fillna("").map(lambda value: value.split("|")).map(__import__("json").dumps)
-        mercados = pd.read_csv(PROJECT_ROOT / "src" / "sipsa" / "catalog" / "mercados.csv")
         conn.register("productos_df", productos)
-        conn.register("mercados_df", mercados)
         conn.execute("INSERT OR REPLACE INTO dim_producto SELECT * FROM productos_df")
-        conn.execute("INSERT OR REPLACE INTO dim_mercado SELECT * FROM mercados_df")
+        conn.execute((PROJECT_ROOT / "src" / "sipsa" / "db" / "views.sql").read_text(encoding="utf-8"))
 
 
 def run_ingest(source: str = "seed", settings: Settings | None = None) -> dict:
@@ -35,22 +67,27 @@ def run_ingest(source: str = "seed", settings: Settings | None = None) -> dict:
         raise ValueError(f"Fuente no soportada todavía: {source}")
     adapter = SeedAdapter()
     raw = adapter.fetch_precios(desde, hasta)
-    normalized = raw.rename(columns={"producto_raw": "producto_id", "mercado_raw": "mercado_id"})
-    rows = normalized[["fecha", "producto_id", "mercado_id", "precio_prom", "precio_min", "precio_max", "fuente"]]
+    normalized = raw.rename(
+        columns={"producto_raw": "producto_id", "ciudad_raw": "ciudad", "precio_prom": "precio"}
+    )
+    rows = (
+        normalized[["fecha", "producto_id", "ciudad", "precio", "fuente"]]
+        .groupby(["fecha", "producto_id", "ciudad", "fuente"], as_index=False)["precio"]
+        .mean()
+    )
     raw_dir = PROJECT_ROOT / "data" / "raw"
     raw_dir.mkdir(parents=True, exist_ok=True)
     rows.to_parquet(raw_dir / f"precios_{run_id}.parquet", index=False)
     with duckdb.connect(str(settings.db_path)) as conn:
         conn.register("incoming", rows)
         existing = conn.execute(
-            "SELECT count(*) FROM fact_precio f JOIN incoming i USING(fecha, producto_id, mercado_id)"
+            "SELECT count(*) FROM fact_precio f JOIN incoming i USING(fecha, producto_id, ciudad)"
         ).fetchone()[0]
         conn.execute(
             """
             INSERT INTO fact_precio BY NAME SELECT * FROM incoming
-            ON CONFLICT (fecha, producto_id, mercado_id) DO UPDATE SET
-              precio_prom=excluded.precio_prom, precio_min=excluded.precio_min,
-              precio_max=excluded.precio_max, fuente=excluded.fuente, ingested_at=now()
+            ON CONFLICT (fecha, producto_id, ciudad) DO UPDATE SET
+              precio=excluded.precio, fuente=excluded.fuente, ingested_at=now()
             """
         )
         inserted = len(rows) - existing

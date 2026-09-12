@@ -6,3 +6,5 @@ venv/
 data/raw/
 data/snapshot/
 .env
+.claude/
+.worktrees/

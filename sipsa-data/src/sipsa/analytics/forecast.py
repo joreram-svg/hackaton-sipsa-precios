@@ -7,7 +7,8 @@ def calculate_forecast(history: pd.DataFrame, horizonte_semanas: int = 2) -> dic
     if len(history) < 4:
         raise ValueError("se requieren al menos 4 semanas")
     ordered = history.sort_values("fecha") if "fecha" in history else history
-    prices = ordered["precio_prom"].astype(float).reset_index(drop=True)
+    price_column = "precio" if "precio" in ordered else "precio_prom"
+    prices = ordered[price_column].astype(float).reset_index(drop=True)
     ma4 = float(prices.tail(4).mean())
     current = float(prices.iloc[-1])
     if len(prices) >= 53:
@@ -30,20 +31,19 @@ def calculate_forecast(history: pd.DataFrame, horizonte_semanas: int = 2) -> dic
     }
 
 
-def forecast(producto_id: str, mercado_id: str, horizonte_semanas: int = 2, repo=None) -> dict:
+def forecast(producto_id: str, ciudad: str, horizonte_semanas: int = 2, repo=None) -> dict:
     if repo is None:
         from sipsa.db.repo import Repository
 
         repo = Repository()
-    history = pd.DataFrame(repo.price_history(producto_id, mercado_id))
+    history = pd.DataFrame(repo.price_history(producto_id, ciudad))
     result = calculate_forecast(history, horizonte_semanas)
-    current = float(history.sort_values("fecha").iloc[-1].precio_prom)
+    current = float(history.sort_values("fecha").iloc[-1].precio)
     return {
         "producto_id": producto_id,
-        "mercado_id": mercado_id,
+        "ciudad": ciudad,
         "horizonte_semanas": horizonte_semanas,
         "precio_actual": round(current, 2),
         **result,
         "var_esperada_pct": round(result["precio_esperado"] / current - 1, 4),
     }
-
