@@ -1,0 +1,762 @@
+<title>Baskio Mercado</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700;800&family=Source+Sans+3:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --navy-950:#0a1c2e;
+    --navy-900:#0f2740;
+    --navy-800:#153a5c;
+    --navy-700:#1d4a73;
+    --teal-600:#227f86;
+    --teal-500:#2f9fa6;
+    --teal-400:#4fb8bd;
+    --teal-100:#e3f3f3;
+    --bg:#f4f7f7;
+    --bg-raised:#ffffff;
+    --line:#dde6e6;
+    --ink:#0f2530;
+    --ink-soft:#4c6470;
+    --ink-faint:#7c929a;
+    --up:#1f9d6b;
+    --up-soft:#e2f5ec;
+    --down:#d64b3a;
+    --down-soft:#fbe6e2;
+    --warn-soft:#fdf3df;
+    --warn-line:#eeda9f;
+    --warn-ink:#6b551a;
+    --neutral-soft:#e7edee;
+    --shadow: 0 1px 2px rgba(15,37,48,.06), 0 8px 24px -12px rgba(15,37,48,.18);
+    --radius:14px;
+    color-scheme: light;
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --bg:#0a1c2e;
+      --bg-raised:#0f2740;
+      --line:#1e3b56;
+      --ink:#eaf2f4;
+      --ink-soft:#a9c2cb;
+      --ink-faint:#6f8a95;
+      --up:#3ecb92;
+      --up-soft:rgba(62,203,146,.12);
+      --down:#ff6b56;
+      --down-soft:rgba(255,107,86,.12);
+      --warn-soft:rgba(238,196,64,.12);
+      --warn-line:rgba(238,196,64,.35);
+      --warn-ink:#e8c86a;
+      --neutral-soft:rgba(169,194,203,.14);
+      --shadow: 0 1px 0 rgba(0,0,0,.3), 0 12px 32px -14px rgba(0,0,0,.6);
+    }
+  }
+  :root[data-theme="dark"]{
+    --bg:#0a1c2e;
+    --bg-raised:#0f2740;
+    --line:#1e3b56;
+    --ink:#eaf2f4;
+    --ink-soft:#a9c2cb;
+    --ink-faint:#6f8a95;
+    --up:#3ecb92;
+    --up-soft:rgba(62,203,146,.12);
+    --down:#ff6b56;
+    --down-soft:rgba(255,107,86,.12);
+    --warn-soft:rgba(238,196,64,.12);
+    --warn-line:rgba(238,196,64,.35);
+    --warn-ink:#e8c86a;
+    --neutral-soft:rgba(169,194,203,.14);
+    --shadow: 0 1px 0 rgba(0,0,0,.3), 0 12px 32px -14px rgba(0,0,0,.6);
+  }
+
+  *{box-sizing:border-box;}
+  body{
+    margin:0; background:var(--bg); color:var(--ink);
+    font-family:"Source Sans 3", -apple-system, Segoe UI, sans-serif;
+    padding-inline:20px; padding-block:0 40px;
+  }
+  h1,h2,h3{font-family:"Archivo", Arial, sans-serif; text-wrap:balance; margin:0;}
+  .mono{font-family:"IBM Plex Mono","SFMono-Regular",Consolas,monospace; font-variant-numeric:tabular-nums;}
+  a{color:inherit;}
+
+  /* ---------- Top bar ---------- */
+  .topbar{
+    display:flex; align-items:center; gap:18px;
+    max-width:1360px; margin:0 auto; padding-block:18px 14px;
+    border-bottom:1px solid var(--line);
+  }
+  .brand{display:flex; align-items:center; gap:10px; flex-shrink:0;}
+  .brand svg{width:34px; height:34px; display:block;}
+  .brand-name{font-family:"Archivo"; font-weight:800; font-size:1.28rem; letter-spacing:-0.01em; color:var(--navy-800);}
+  :root:not([data-theme="light"]){}
+  @media (prefers-color-scheme: dark){ :root:not([data-theme="light"]) .brand-name{color:#eaf2f4;} }
+  :root[data-theme="dark"] .brand-name{color:#eaf2f4;}
+  .brand-tag{font-size:.72rem; color:var(--ink-faint); letter-spacing:.04em; text-transform:uppercase; border-left:1px solid var(--line); padding-left:10px; margin-left:2px;}
+  .top-meta{margin-left:auto; display:flex; align-items:center; gap:22px; font-size:.82rem; color:var(--ink-soft);}
+  .top-meta .dot{width:7px; height:7px; border-radius:50%; background:var(--up); display:inline-block; margin-right:6px; box-shadow:0 0 0 3px var(--up-soft);}
+  .top-meta strong{color:var(--ink); font-weight:600;}
+
+  /* ---------- Ticker strip ---------- */
+  .ticker-wrap{max-width:1360px; margin:0 auto; overflow:hidden; border-bottom:1px solid var(--line); background:var(--bg-raised); border-radius:0 0 10px 10px;}
+  .ticker{display:flex; gap:0; animation: scroll-left 46s linear infinite; width:max-content;}
+  .ticker:hover{animation-play-state:paused;}
+  @keyframes scroll-left{ from{transform:translateX(0);} to{transform:translateX(-50%);} }
+  .tick-item{display:flex; align-items:baseline; gap:8px; padding:10px 20px; border-right:1px solid var(--line); font-size:.82rem; white-space:nowrap;}
+  .tick-item .name{color:var(--ink-soft); font-weight:600;}
+  .tick-item .chg{font-family:"IBM Plex Mono"; font-weight:600;}
+  .up-txt{color:var(--up);}
+  .down-txt{color:var(--down);}
+  @media (prefers-reduced-motion: reduce){ .ticker{animation:none;} }
+
+  /* ---------- Layout ---------- */
+  .shell{max-width:1360px; margin:0 auto; display:grid; grid-template-columns:340px 1fr; gap:18px; padding-top:18px;}
+  @media (max-width:980px){ .shell{grid-template-columns:1fr;} }
+
+  .panel{background:var(--bg-raised); border:1px solid var(--line); border-radius:var(--radius); box-shadow:var(--shadow);}
+  .panel-head{display:flex; align-items:center; justify-content:space-between; padding:14px 16px; border-bottom:1px solid var(--line);}
+  .panel-head h2{font-size:.95rem; font-weight:700;}
+  .panel-head .sub{font-size:.72rem; color:var(--ink-faint); text-transform:uppercase; letter-spacing:.05em;}
+
+  /* ---------- Watchlist ---------- */
+  .watchlist{max-height:none;}
+  .wl-filters{display:flex; gap:6px; padding:10px 12px; flex-wrap:wrap; border-bottom:1px solid var(--line);}
+  .chip{
+    font-family:"Source Sans 3"; font-size:.74rem; font-weight:600; color:var(--ink-soft);
+    background:transparent; border:1px solid var(--line); border-radius:999px; padding:5px 11px;
+    cursor:pointer; transition:.15s;
+  }
+  .chip:hover{border-color:var(--teal-500); color:var(--teal-600);}
+  .chip.active{background:var(--navy-800); border-color:var(--navy-800); color:#fff;}
+  :root[data-theme="dark"] .chip.active,
+  @media (prefers-color-scheme: dark){ :root:not([data-theme="light"]) .chip.active{background:var(--teal-500); border-color:var(--teal-500); color:#04211f;} }
+  :root[data-theme="dark"] .chip.active{background:var(--teal-500); border-color:var(--teal-500); color:#04211f;}
+
+  .wl-rows{display:flex; flex-direction:column; max-height:640px; overflow-y:auto;}
+  .wl-row{
+    display:grid; grid-template-columns:1fr 58px auto; align-items:center; gap:10px;
+    padding:10px 14px; border-bottom:1px solid var(--line); cursor:pointer; transition:background .12s;
+  }
+  .wl-row:last-child{border-bottom:none;}
+  .wl-row:hover{background:var(--teal-100);}
+  @media (prefers-color-scheme: dark){ :root:not([data-theme="light"]) .wl-row:hover{background:rgba(47,159,166,.14);} }
+  :root[data-theme="dark"] .wl-row:hover{background:rgba(47,159,166,.14);}
+  .wl-row.active{background:var(--teal-100); box-shadow:inset 3px 0 0 var(--teal-500);}
+  @media (prefers-color-scheme: dark){ :root:not([data-theme="light"]) .wl-row.active{background:rgba(47,159,166,.16);} }
+  :root[data-theme="dark"] .wl-row.active{background:rgba(47,159,166,.16);}
+  .wl-name{font-weight:600; font-size:.87rem; line-height:1.15;}
+  .wl-cat{font-size:.68rem; color:var(--ink-faint); text-transform:uppercase; letter-spacing:.04em;}
+  .wl-spark{width:58px; height:28px;}
+  .wl-price{text-align:right; font-family:"IBM Plex Mono"; font-size:.82rem;}
+  .wl-chg{font-size:.72rem; font-weight:600; text-align:right;}
+
+  /* ---------- Main / chart ---------- */
+  .main-col{display:flex; flex-direction:column; gap:18px;}
+  .chart-head{padding:16px 20px 0; display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:14px;}
+  .sym-title{display:flex; align-items:baseline; gap:10px; flex-wrap:wrap;}
+  .sym-title h2{font-size:1.5rem; font-weight:800; letter-spacing:-0.01em;}
+  .sym-id{font-family:"IBM Plex Mono"; font-size:.78rem; color:var(--ink-faint); background:var(--teal-100); padding:2px 8px; border-radius:6px;}
+  @media (prefers-color-scheme: dark){ :root:not([data-theme="light"]) .sym-id{background:rgba(47,159,166,.16); color:var(--teal-400);} }
+  :root[data-theme="dark"] .sym-id{background:rgba(47,159,166,.16); color:var(--teal-400);}
+  .sym-price-row{display:flex; align-items:baseline; gap:12px; margin-top:6px;}
+  .sym-price{font-family:"IBM Plex Mono"; font-size:2.1rem; font-weight:600; letter-spacing:-0.01em;}
+  .sym-unit{font-size:.78rem; color:var(--ink-faint);}
+  .sym-chg{font-family:"IBM Plex Mono"; font-size:1rem; font-weight:600; padding:3px 9px; border-radius:7px;}
+  .sym-chg.up{color:var(--up); background:var(--up-soft);}
+  .sym-chg.down{color:var(--down); background:var(--down-soft);}
+
+  .stat-grid{display:flex; gap:22px; padding:14px 20px; flex-wrap:wrap;}
+  .stat{display:flex; flex-direction:column; gap:2px; min-width:84px;}
+  .stat .label{font-size:.68rem; text-transform:uppercase; letter-spacing:.05em; color:var(--ink-faint);}
+  .stat .val{font-family:"IBM Plex Mono"; font-size:.92rem; font-weight:600;}
+
+  .chart-area{padding:4px 8px 14px;}
+  svg.main-chart{width:100%; height:340px; display:block;}
+  .range-bar{padding:0 20px 18px; display:flex; align-items:center; gap:10px;}
+  .range-track{position:relative; flex:1; height:6px; border-radius:3px; background:linear-gradient(90deg, var(--down-soft), var(--up-soft));}
+  .range-dot{position:absolute; top:50%; width:11px; height:11px; border-radius:50%; background:var(--navy-800); border:2px solid var(--bg-raised); transform:translate(-50%,-50%); box-shadow:0 0 0 1px var(--line);}
+  :root[data-theme="dark"] .range-dot, @media (prefers-color-scheme:dark){ :root:not([data-theme="light"]) .range-dot{background:var(--teal-400);} }
+  :root[data-theme="dark"] .range-dot{background:var(--teal-400);}
+  .range-label{font-family:"IBM Plex Mono"; font-size:.72rem; color:var(--ink-faint);}
+
+  .toggle-row{display:flex; gap:6px; padding:0 20px 16px;}
+
+  .cities-panel{padding:14px 20px 18px;}
+  .cities-panel h3{font-size:.8rem; text-transform:uppercase; letter-spacing:.05em; color:var(--ink-faint); margin-bottom:10px; font-family:"Source Sans 3"; font-weight:700;}
+  .city-grid{display:grid; grid-template-columns:repeat(auto-fill,minmax(120px,1fr)); gap:8px;}
+  .city-tile{background:var(--bg); border:1px solid var(--line); border-radius:9px; padding:8px 10px;}
+  .city-tile .c-name{font-size:.72rem; color:var(--ink-soft); margin-bottom:3px;}
+  .city-tile .c-price{font-family:"IBM Plex Mono"; font-size:.86rem; font-weight:600;}
+
+  /* ---------- Insights ---------- */
+  .insights-grid{display:grid; grid-template-columns:repeat(3,1fr); gap:18px;}
+  @media (max-width:980px){ .insights-grid{grid-template-columns:1fr;} }
+  .insight-card{padding:16px 18px;}
+  .insight-card h3{font-size:.9rem; font-weight:700; margin-bottom:4px;}
+  .insight-card p.desc{font-size:.78rem; color:var(--ink-faint); margin:0 0 12px;}
+  .rank-row{display:flex; align-items:center; justify-content:space-between; padding:7px 0; border-bottom:1px dashed var(--line); font-size:.83rem;}
+  .rank-row:last-child{border-bottom:none;}
+  .rank-name{display:flex; align-items:center; gap:8px; font-weight:600;}
+  .rank-num{font-family:"IBM Plex Mono"; font-size:.7rem; color:var(--ink-faint); width:16px;}
+  .rank-val{font-family:"IBM Plex Mono"; font-weight:600; font-size:.82rem;}
+
+  .cat-bar-row{display:flex; align-items:center; gap:10px; padding:8px 0;}
+  .cat-bar-row .cat-name{width:82px; font-size:.78rem; font-weight:600; text-transform:capitalize; flex-shrink:0;}
+  .cat-bar-track{flex:1; height:8px; background:var(--line); border-radius:4px; position:relative; overflow:hidden;}
+  .cat-bar-fill{position:absolute; top:0; bottom:0; border-radius:4px;}
+  .cat-bar-val{font-family:"IBM Plex Mono"; font-size:.78rem; font-weight:600; width:56px; text-align:right; flex-shrink:0;}
+
+  .narrative{grid-column:1/-1; padding:18px 20px;}
+  .narrative h3{font-size:.95rem; font-weight:700; margin-bottom:10px;}
+  .narrative ul{margin:0; padding-left:18px; display:grid; grid-template-columns:1fr 1fr; gap:6px 28px; font-size:.87rem; color:var(--ink-soft);}
+  @media (max-width:760px){ .narrative ul{grid-template-columns:1fr;} }
+  .narrative li{line-height:1.5;}
+  .narrative strong{color:var(--ink);}
+
+  footer{max-width:1360px; margin:26px auto 0; padding-top:14px; border-top:1px solid var(--line); font-size:.72rem; color:var(--ink-faint); display:flex; justify-content:space-between; flex-wrap:wrap; gap:8px;}
+
+  .lang-toggle{display:flex; align-items:center; gap:0; border:1px solid var(--line); border-radius:999px; padding:2px; background:var(--bg);}
+  .lang-btn{font-family:"IBM Plex Mono"; font-size:.72rem; font-weight:600; letter-spacing:.02em; padding:5px 11px; border-radius:999px; border:none; background:transparent; color:var(--ink-faint); cursor:pointer; transition:.15s;}
+  .lang-btn.active{background:var(--navy-800); color:#fff;}
+  :root[data-theme="dark"] .lang-btn.active{background:var(--teal-500); color:#04211f;}
+  @media (prefers-color-scheme: dark){ :root:not([data-theme="light"]) .lang-btn.active{background:var(--teal-500); color:#04211f;} }
+
+  /* ---------- Disclaimer ---------- */
+  .disclaimer{
+    max-width:1360px; margin:14px auto 0; display:flex; align-items:flex-start; gap:10px;
+    background:var(--warn-soft); border:1px solid var(--warn-line); color:var(--warn-ink);
+    border-radius:10px; padding:10px 14px; font-size:.8rem; line-height:1.45;
+  }
+  .disclaimer .ic{flex-shrink:0; font-size:1rem; line-height:1.4;}
+  .disclaimer strong{font-weight:700;}
+
+  /* ---------- Forecast ---------- */
+  .forecast-head{padding:16px 20px 2px; display:flex; align-items:baseline; justify-content:space-between; flex-wrap:wrap; gap:8px;}
+  .forecast-head h3{font-size:.95rem; font-weight:700;}
+  .forecast-head .fc-meta{font-size:.7rem; color:var(--ink-faint);}
+  .forecast-body{padding:8px 20px 20px; display:grid; grid-template-columns:1fr 1fr auto; gap:18px; align-items:stretch;}
+  @media (max-width:760px){ .forecast-body{grid-template-columns:1fr;} }
+  .fc-col{display:flex; flex-direction:column; gap:6px; padding:12px 14px; background:var(--bg); border:1px solid var(--line); border-radius:11px;}
+  .fc-col .fc-label{font-size:.68rem; text-transform:uppercase; letter-spacing:.05em; color:var(--ink-faint);}
+  .fc-col .fc-price{font-family:"IBM Plex Mono"; font-size:1.3rem; font-weight:600;}
+  .fc-col .fc-ci{font-family:"IBM Plex Mono"; font-size:.74rem; color:var(--ink-soft);}
+  .fc-signal-col{display:flex; flex-direction:column; gap:8px; padding:12px 16px; background:var(--bg); border:1px solid var(--line); border-radius:11px; min-width:168px; justify-content:center; align-items:flex-start;}
+  .fc-signal-col .fc-label{font-size:.68rem; text-transform:uppercase; letter-spacing:.05em; color:var(--ink-faint);}
+  .signal-badge{display:inline-flex; align-items:center; gap:6px; font-family:"IBM Plex Mono"; font-weight:700; font-size:1rem; letter-spacing:.02em; padding:5px 12px; border-radius:8px;}
+  .signal-badge.subir{background:var(--up-soft); color:var(--up);}
+  .signal-badge.bajar{background:var(--down-soft); color:var(--down);}
+  .signal-badge.estable{background:var(--neutral-soft); color:var(--ink-soft);}
+  .trend-pill{font-size:.76rem; font-weight:600; color:var(--ink-soft);}
+  .trend-pill .arrow{font-family:"IBM Plex Mono";}
+  .forecast-note{padding:0 20px 18px; font-size:.72rem; color:var(--ink-faint); line-height:1.5;}
+</style>
+
+<div class="topbar">
+  <div class="brand">
+    <svg viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <path d="M28 34c0-12 8-19 22-19s22 7 22 19" stroke="var(--navy-800)" stroke-width="6.5" stroke-linecap="round"/>
+      <path d="M22 34h56l-6 44a6 6 0 0 1-6 5.2H34a6 6 0 0 1-6-5.2L22 34Z" stroke="var(--navy-800)" stroke-width="6.5" stroke-linejoin="round"/>
+      <g stroke="var(--teal-500)" stroke-width="5.2" stroke-linecap="round">
+        <path d="M30 45h40"/><path d="M28 58h44"/><path d="M31 71h38"/>
+        <path d="M40 40l-3 40"/><path d="M50 40v42"/><path d="M60 40l3 40"/>
+      </g>
+    </svg>
+    <span class="brand-name">baskio</span>
+    <span class="brand-tag">Mercado agro</span>
+  </div>
+  <div class="lang-toggle" role="group" aria-label="Language">
+    <button class="lang-btn active" id="lang-es" type="button">ES</button>
+    <button class="lang-btn" id="lang-en" type="button">EN</button>
+  </div>
+  <div class="top-meta">
+    <span><span class="dot"></span><span id="lang-static-updated">Datos SIPSA · </span><strong id="meta-updated">—</strong></span>
+    <span><span id="lang-static-coverage">Cobertura </span><strong id="meta-coverage">—</strong></span>
+    <span><span id="lang-static-count">Productos </span><strong id="meta-count">—</strong></span>
+  </div>
+</div>
+
+<div class="ticker-wrap"><div class="ticker" id="ticker"></div></div>
+
+<div class="disclaimer">
+  <span class="ic">⚠️</span>
+  <span id="disclaimer-text"><strong>Aviso:</strong> este reporte está diseñado para mayoristas de centrales de abastos. Los precios, tendencias y pronósticos son indicativos, se calculan a partir de promedios semanales SIPSA-DANE y no reemplazan la verificación directa en plaza antes de negociar.</span>
+</div>
+
+<div class="shell">
+  <aside class="panel watchlist">
+    <div class="panel-head">
+      <h2 id="wl-title">Canasta</h2>
+      <span class="sub" id="wl-count">—</span>
+    </div>
+    <div class="wl-filters" id="wl-filters"></div>
+    <div class="wl-rows" id="wl-rows"></div>
+  </aside>
+
+  <main class="main-col">
+    <section class="panel">
+      <div class="chart-head">
+        <div class="sym-title">
+          <h2 id="c-name">—</h2>
+          <span class="sym-id" id="c-id">—</span>
+        </div>
+        <div class="toggle-row" style="padding:0;">
+          <button class="chip active" data-metric="precio" id="btn-precio">Precio</button>
+          <button class="chip" data-metric="abasto" id="btn-abasto">Abastecimiento</button>
+        </div>
+      </div>
+      <div class="chart-head" style="padding-top:0;">
+        <div>
+          <div class="sym-price-row">
+            <span class="sym-price mono" id="c-price">—</span>
+            <span class="sym-unit" id="c-unit">COP / kg</span>
+            <span class="sym-chg" id="c-chg1y">—</span>
+          </div>
+        </div>
+      </div>
+      <div class="stat-grid">
+        <div class="stat"><span class="label" id="lbl-1w">1 semana</span><span class="val" id="s-1w">—</span></div>
+        <div class="stat"><span class="label" id="lbl-4w">4 semanas</span><span class="val" id="s-4w">—</span></div>
+        <div class="stat"><span class="label" id="lbl-trend">Tendencia /sem</span><span class="val" id="s-trend">—</span></div>
+        <div class="stat"><span class="label" id="lbl-vol">Volatilidad</span><span class="val" id="s-vol">—</span></div>
+        <div class="stat"><span class="label" id="lbl-min">Mín. 52 sem</span><span class="val" id="s-min">—</span></div>
+        <div class="stat"><span class="label" id="lbl-max">Máx. 52 sem</span><span class="val" id="s-max">—</span></div>
+      </div>
+      <div class="chart-area"><svg class="main-chart" id="main-chart" viewBox="0 0 1000 340" preserveAspectRatio="none"></svg></div>
+      <div class="range-bar">
+        <span class="range-label" id="r-min">—</span>
+        <div class="range-track"><div class="range-dot" id="r-dot"></div></div>
+        <span class="range-label" id="r-max">—</span>
+      </div>
+      <div class="cities-panel">
+        <h3 id="cities-h3">Precio actual por ciudad</h3>
+        <div class="city-grid" id="city-grid"></div>
+      </div>
+    </section>
+
+    <section class="panel">
+      <div class="forecast-head">
+        <h3 id="forecast-title">Pronóstico de precio</h3>
+        <span class="fc-meta" id="forecast-meta">—</span>
+      </div>
+      <div class="forecast-body">
+        <div class="fc-col">
+          <span class="fc-label" id="fc-label-7d">Forecast 7 días</span>
+          <span class="fc-price mono" id="fc-price-7d">—</span>
+          <span class="fc-ci" id="fc-ci-7d">—</span>
+        </div>
+        <div class="fc-col">
+          <span class="fc-label" id="fc-label-30d">Forecast 30 días</span>
+          <span class="fc-price mono" id="fc-price-30d">—</span>
+          <span class="fc-ci" id="fc-ci-30d">—</span>
+        </div>
+        <div class="fc-signal-col">
+          <span class="fc-label" id="fc-label-signal">Señal</span>
+          <span class="signal-badge" id="fc-signal">—</span>
+          <span class="trend-pill" id="fc-trend">—</span>
+        </div>
+      </div>
+      <p class="forecast-note" id="forecast-note">Pronóstico estimado por regresión lineal sobre las últimas semanas de precio promedio nacional. El intervalo de confianza se amplía con el horizonte; úselo como referencia de tendencia, no como precio garantizado.</p>
+    </section>
+
+    <section class="insights-grid">
+      <div class="panel insight-card">
+        <h3 id="gainers-h3">📈 Mayor alza en 52 semanas</h3>
+        <p class="desc" id="gainers-desc">Productos con mayor variación positiva de precio en el año</p>
+        <div id="rank-gainers"></div>
+      </div>
+      <div class="panel insight-card">
+        <h3 id="losers-h3">📉 Mayor baja en 52 semanas</h3>
+        <p class="desc" id="losers-desc">Productos con mayor variación negativa de precio en el año</p>
+        <div id="rank-losers"></div>
+      </div>
+      <div class="panel insight-card">
+        <h3 id="volatile-h3">⚡ Más volátiles</h3>
+        <p class="desc" id="volatile-desc">Mayor desviación semana a semana en el último año</p>
+        <div id="rank-volatile"></div>
+      </div>
+      <div class="panel insight-card" style="grid-column:1/-1;">
+        <h3 id="cat-perf-h3">Desempeño por categoría</h3>
+        <p class="desc" id="cat-perf-desc">Variación promedio de precio a 52 semanas, ponderada por número de productos</p>
+        <div id="cat-bars"></div>
+      </div>
+      <div class="panel narrative">
+        <h3 id="narrative-h3">Lo que dicen los datos</h3>
+        <ul id="narrative-list"></ul>
+      </div>
+    </section>
+  </main>
+</div>
+
+<footer>
+  <span id="foot-brand">Baskio Mercado — inteligencia de precios agropecuarios de Colombia</span>
+  <span id="foot-range">—</span>
+</footer>
+
+<script>window.BASKIO_DATA = __BASKIO_DATA_JSON__;</script>
+<script>
+(function(){
+  const D = window.BASKIO_DATA;
+  const products = D.products;
+  const meta = D.meta;
+  const insights = D.insights;
+
+  // ---------- i18n ----------
+  let lang = 'es';
+
+  const CAT_I18N = {
+    todos:{es:'Todos', en:'All'},
+    frutas:{es:'Frutas', en:'Fruits'},
+    verduras:{es:'Verduras', en:'Vegetables'},
+    granos:{es:'Granos', en:'Grains'},
+    tuberculos:{es:'Tubérculos', en:'Tubers'},
+    carnes:{es:'Carnes', en:'Meats'},
+    procesados:{es:'Procesados', en:'Processed'},
+  };
+  const catLabel = c => (CAT_I18N[c] && CAT_I18N[c][lang]) || c;
+
+  const PRODUCT_EN = {
+    aguacate:'Avocado', banano:'Banana', limon_tahiti:'Tahiti lime', lulo:'Lulo', mango:'Mango',
+    maracuya:'Passion fruit', mora:'Blackberry', naranja:'Orange', papaya:'Papaya', pina:'Pineapple',
+    platano_harton:'Plantain', arveja:'Green pea', arracacha:'Arracacha', papa_criolla:'Creole potato',
+    papa_pastusa:'Pastusa potato', yuca:'Cassava', ahuyama:'Pumpkin (ahuyama)', cebolla_cabezona:'Bulb onion',
+    cebolla_larga:'Green onion', habichuela:'Green bean', pimenton:'Bell pepper', tomate_chonto:'Round tomato',
+    zanahoria:'Carrot',
+  };
+  const prodLabel = p => lang==='es' ? p.nombre : (PRODUCT_EN[p.id] || p.nombre);
+
+  const CITY_EN = {
+    'Cartagena de Indias':'Cartagena',
+  };
+  const cityLabel = c => lang==='es' ? c : (CITY_EN[c] || c);
+
+  const T = {
+    brandTag: {es:'Mercado agro', en:'Agri market'},
+    dataUpdated: {es:'Datos SIPSA', en:'SIPSA data'},
+    coverage: {es:'Cobertura', en:'Coverage'},
+    products: {es:'Productos', en:'Products'},
+    basketTitle: {es:'Canasta', en:'Basket'},
+    symbols: {es:'símbolos', en:'symbols'},
+    price: {es:'Precio', en:'Price'},
+    supply: {es:'Abastecimiento', en:'Supply'},
+    week1: {es:'1 semana', en:'1 week'},
+    week4: {es:'4 semanas', en:'4 weeks'},
+    trendWeek: {es:'Tendencia /sem', en:'Trend /wk'},
+    volatility: {es:'Volatilidad', en:'Volatility'},
+    yrMin: {es:'Mín. 52 sem', en:'52-wk low'},
+    yrMax: {es:'Máx. 52 sem', en:'52-wk high'},
+    citiesTitle: {es:'Precio actual por ciudad', en:'Current price by city'},
+    noCityData: {es:'Sin datos por ciudad para la fecha más reciente.', en:'No city-level data for the latest date.'},
+    gainersTitle: {es:'📈 Mayor alza en 52 semanas', en:'📈 Biggest 52-week gainers'},
+    gainersDesc: {es:'Productos con mayor variación positiva de precio en el año', en:'Products with the largest positive price change this year'},
+    losersTitle: {es:'📉 Mayor baja en 52 semanas', en:'📉 Biggest 52-week losers'},
+    losersDesc: {es:'Productos con mayor variación negativa de precio en el año', en:'Products with the largest negative price change this year'},
+    volatileTitle: {es:'⚡ Más volátiles', en:'⚡ Most volatile'},
+    volatileDesc: {es:'Mayor desviación semana a semana en el último año', en:'Largest week-to-week swings over the last year'},
+    catPerfTitle: {es:'Desempeño por categoría', en:'Performance by category'},
+    catPerfDesc: {es:'Variación promedio de precio a 52 semanas, ponderada por número de productos', en:'Average 52-week price change, weighted by number of products'},
+    narrativeTitle: {es:'Lo que dicen los datos', en:'What the data shows'},
+    footerBrand: {es:'Baskio Mercado — inteligencia de precios agropecuarios de Colombia', en:'Baskio Market — Colombian agricultural price intelligence'},
+    weekly52: {es:'(52 sem)', en:'(52 wk)'},
+    disclaimer: {es:'<strong>Aviso:</strong> este reporte está diseñado para mayoristas de centrales de abastos. Los precios, tendencias y pronósticos son indicativos, se calculan a partir de promedios semanales SIPSA-DANE y no reemplazan la verificación directa en plaza antes de negociar.',
+                 en:'<strong>Notice:</strong> this report is built for wholesale buyers at supply markets (centrales de abastos). Prices, trends and forecasts are indicative, computed from weekly SIPSA-DANE averages, and do not replace direct verification at the market before negotiating.'},
+    forecastTitle: {es:'Pronóstico de precio', en:'Price forecast'},
+    forecastMeta: {es:'weeks', en:'weeks'},
+    fc7d: {es:'Forecast 7 días', en:'7-day forecast'},
+    fc30d: {es:'Forecast 30 días', en:'30-day forecast'},
+    fcSignalLbl: {es:'Señal', en:'Signal'},
+    fcNote: {es:'Pronóstico estimado por regresión lineal sobre las últimas semanas de precio promedio nacional. El intervalo de confianza se amplía con el horizonte; úselo como referencia de tendencia, no como precio garantizado.',
+             en:'Forecast estimated by linear regression over the recent weeks of national average price. The confidence interval widens with the horizon; use it as a trend reference, not a guaranteed price.'},
+    signalSubir: {es:'SUBIR', en:'RISE'},
+    signalBajar: {es:'BAJAR', en:'FALL'},
+    signalEstable: {es:'ESTABLE', en:'STABLE'},
+    trendAlcista: {es:'Tendencia esperada: alcista', en:'Expected trend: upward'},
+    trendBajista: {es:'Tendencia esperada: bajista', en:'Expected trend: downward'},
+    trendEstable: {es:'Tendencia esperada: estable', en:'Expected trend: stable'},
+  };
+  const t = key => T[key][lang];
+
+  const fmtCOP = n => n==null ? '—' : '$' + Math.round(n).toLocaleString(lang==='es'?'es-CO':'en-US');
+  const fmtPct = n => n==null ? '—' : (n>0?'+':'') + n.toFixed(1) + '%';
+  const fmtDate = s => { const d=new Date(s+'T00:00:00'); return d.toLocaleDateString(lang==='es'?'es-CO':'en-US',{day:'2-digit',month:'short',year:'numeric'}); };
+  const chgClass = n => n>0 ? 'up-txt' : (n<0 ? 'down-txt' : '');
+
+  function applyStaticText(){
+    document.querySelector('.brand-tag').textContent = t('brandTag');
+    document.getElementById('lang-static-updated').textContent = t('dataUpdated') + ' · ';
+    document.getElementById('lang-static-coverage').textContent = t('coverage') + ' ';
+    document.getElementById('lang-static-count').textContent = t('products') + ' ';
+    document.getElementById('wl-title').textContent = t('basketTitle');
+    document.getElementById('btn-precio').textContent = t('price');
+    document.getElementById('btn-abasto').textContent = t('supply');
+    document.getElementById('lbl-1w').textContent = t('week1');
+    document.getElementById('lbl-4w').textContent = t('week4');
+    document.getElementById('lbl-trend').textContent = t('trendWeek');
+    document.getElementById('lbl-vol').textContent = t('volatility');
+    document.getElementById('lbl-min').textContent = t('yrMin');
+    document.getElementById('lbl-max').textContent = t('yrMax');
+    document.getElementById('cities-h3').textContent = t('citiesTitle');
+    document.getElementById('gainers-h3').textContent = t('gainersTitle');
+    document.getElementById('gainers-desc').textContent = t('gainersDesc');
+    document.getElementById('losers-h3').textContent = t('losersTitle');
+    document.getElementById('losers-desc').textContent = t('losersDesc');
+    document.getElementById('volatile-h3').textContent = t('volatileTitle');
+    document.getElementById('volatile-desc').textContent = t('volatileDesc');
+    document.getElementById('cat-perf-h3').textContent = t('catPerfTitle');
+    document.getElementById('cat-perf-desc').textContent = t('catPerfDesc');
+    document.getElementById('narrative-h3').textContent = t('narrativeTitle');
+    document.getElementById('foot-brand').textContent = t('footerBrand');
+    document.getElementById('meta-updated').textContent = fmtDate(meta.max_date);
+    document.getElementById('meta-coverage').textContent = fmtDate(meta.start_date) + ' → ' + fmtDate(meta.max_date);
+    document.getElementById('meta-count').textContent = meta.n_products;
+    document.getElementById('disclaimer-text').innerHTML = t('disclaimer');
+    document.getElementById('forecast-title').textContent = t('forecastTitle');
+    document.getElementById('fc-label-7d').textContent = t('fc7d');
+    document.getElementById('fc-label-30d').textContent = t('fc30d');
+    document.getElementById('fc-label-signal').textContent = t('fcSignalLbl');
+    document.getElementById('forecast-note').textContent = t('fcNote');
+  }
+
+  function renderTicker(){
+    const tickerEl = document.getElementById('ticker');
+    tickerEl.innerHTML = [...products, ...products].map(p => {
+      const cls = chgClass(p.chg_1y);
+      return '<div class="tick-item"><span class="name">' + prodLabel(p) + '</span><span class="chg ' + cls + '">' + fmtPct(p.chg_1y) + '</span></div>';
+    }).join('');
+  }
+
+  function sparkPath(series, w, h, pad){
+    pad = pad || 3;
+    const vals = series.map(function(s){ return s[1]; });
+    const min = Math.min.apply(null, vals), max = Math.max.apply(null, vals);
+    const range = (max-min)||1;
+    const n = vals.length;
+    const pts = vals.map(function(v,i){
+      const x = pad + (i/(n-1))*(w-2*pad);
+      const y = h-pad - ((v-min)/range)*(h-2*pad);
+      return [x,y];
+    });
+    return pts.map(function(p,i){ return (i===0?'M':'L')+p[0].toFixed(1)+','+p[1].toFixed(1); }).join(' ');
+  }
+  function sparkSVG(series, chg){
+    const w=58,h=28;
+    const d = sparkPath(series,w,h);
+    const color = chg>0 ? 'var(--up)' : (chg<0 ? 'var(--down)' : 'var(--ink-faint)');
+    return '<svg class="wl-spark" viewBox="0 0 ' + w + ' ' + h + '"><path d="' + d + '" fill="none" stroke="' + color + '" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+  }
+
+  const catIds = ['todos'].concat(Array.from(new Set(products.map(function(p){ return p.categoria; }))).sort());
+  const filtersEl = document.getElementById('wl-filters');
+  let activeCat = 'todos';
+
+  function renderFilters(){
+    filtersEl.innerHTML = catIds.map(function(c){
+      return '<button class="chip ' + (c===activeCat?'active':'') + '" data-cat="' + c + '">' + catLabel(c) + '</button>';
+    }).join('');
+    filtersEl.querySelectorAll('.chip').forEach(function(b){
+      b.addEventListener('click', function(){
+        activeCat = b.dataset.cat;
+        renderFilters();
+        renderWatchlist();
+      });
+    });
+  }
+
+  let currentId = products[0].id;
+
+  function renderWatchlist(){
+    const rowsEl = document.getElementById('wl-rows');
+    const list = products.filter(function(p){ return activeCat==='todos' || p.categoria===activeCat; });
+    document.getElementById('wl-count').textContent = list.length + ' ' + t('symbols');
+    rowsEl.innerHTML = list.map(function(p){
+      return '<div class="wl-row ' + (p.id===currentId?'active':'') + '" data-id="' + p.id + '">' +
+        '<div><div class="wl-name">' + prodLabel(p) + '</div><div class="wl-cat">' + catLabel(p.categoria) + '</div></div>' +
+        sparkSVG(p.series, p.chg_1y) +
+        '<div><div class="wl-price">' + fmtCOP(p.current) + '</div><div class="wl-chg ' + chgClass(p.chg_1y) + '">' + fmtPct(p.chg_1y) + '</div></div>' +
+      '</div>';
+    }).join('');
+    rowsEl.querySelectorAll('.wl-row').forEach(function(r){
+      r.addEventListener('click', function(){ currentId = r.dataset.id; renderWatchlist(); renderMain(); });
+    });
+  }
+
+  let metric = 'precio';
+  document.getElementById('btn-precio').addEventListener('click', function(){ metric='precio'; setMetricBtn(); renderMain(); });
+  document.getElementById('btn-abasto').addEventListener('click', function(){ metric='abasto'; setMetricBtn(); renderMain(); });
+  function setMetricBtn(){
+    document.getElementById('btn-precio').classList.toggle('active', metric==='precio');
+    document.getElementById('btn-abasto').classList.toggle('active', metric==='abasto');
+  }
+
+  function buildChart(series, isUp){
+    const svg = document.getElementById('main-chart');
+    const W=1000,H=340, padL=54, padR=16, padT=18, padB=30;
+    const vals = series.map(function(s){ return s[1]; });
+    const min = Math.min.apply(null, vals), max = Math.max.apply(null, vals);
+    const range = (max-min) || (max||1)*0.1;
+    const n = vals.length;
+    const x = function(i){ return padL + (i/(n-1))*(W-padL-padR); };
+    const y = function(v){ return H-padB - ((v-min+range*0.08)/(range*1.16))*(H-padT-padB); };
+
+    let d = '';
+    vals.forEach(function(v,i){ d += (i===0?'M':'L') + x(i).toFixed(1)+','+y(v).toFixed(1)+' '; });
+    let area = d + 'L'+x(n-1).toFixed(1)+','+(H-padB).toFixed(1)+' L'+x(0).toFixed(1)+','+(H-padB).toFixed(1)+' Z';
+
+    const lineColor = isUp ? 'var(--up)' : 'var(--down)';
+    const fillId = 'grad-' + (isUp?'up':'down');
+
+    let grid = '';
+    const steps = 4;
+    for(let s=0; s<=steps; s++){
+      const v = min - range*0.08 + (range*1.16)*(s/steps);
+      const yy = y(v);
+      grid += '<line x1="'+padL+'" y1="'+yy.toFixed(1)+'" x2="'+(W-padR)+'" y2="'+yy.toFixed(1)+'" stroke="var(--line)" stroke-width="1"/>';
+      grid += '<text x="'+(padL-8)+'" y="'+(yy+4).toFixed(1)+'" text-anchor="end" font-size="11" font-family="IBM Plex Mono" fill="var(--ink-faint)">'+Math.round(v).toLocaleString(lang==='es'?'es-CO':'en-US')+'</text>';
+    }
+    const dateLabels = [0, Math.floor(n/2), n-1].map(function(i){
+      const dt = new Date(series[i][0]+'T00:00:00');
+      return '<text x="'+x(i).toFixed(1)+'" y="'+(H-8)+'" text-anchor="middle" font-size="11" font-family="IBM Plex Mono" fill="var(--ink-faint)">'+dt.toLocaleDateString(lang==='es'?'es-CO':'en-US',{month:'short',year:'2-digit'})+'</text>';
+    }).join('');
+
+    const lastX = x(n-1), lastY = y(vals[n-1]);
+
+    svg.innerHTML =
+      '<defs><linearGradient id="'+fillId+'" x1="0" y1="0" x2="0" y2="1">' +
+      '<stop offset="0%" stop-color="'+lineColor+'" stop-opacity="0.28"/>' +
+      '<stop offset="100%" stop-color="'+lineColor+'" stop-opacity="0"/></linearGradient></defs>' +
+      grid +
+      '<path d="'+area+'" fill="url(#'+fillId+')" stroke="none"/>' +
+      '<path d="'+d+'" fill="none" stroke="'+lineColor+'" stroke-width="2.4" stroke-linejoin="round" stroke-linecap="round"/>' +
+      '<circle cx="'+lastX.toFixed(1)+'" cy="'+lastY.toFixed(1)+'" r="4.5" fill="'+lineColor+'" stroke="var(--bg-raised)" stroke-width="2"/>' +
+      dateLabels;
+  }
+
+  function renderMain(){
+    const p = products.find(function(x){ return x.id===currentId; });
+    document.getElementById('c-name').textContent = prodLabel(p);
+    document.getElementById('c-id').textContent = 'BASK:' + p.id.toUpperCase();
+    document.getElementById('c-unit').textContent = 'COP / ' + p.unidad;
+    document.getElementById('c-price').textContent = fmtCOP(p.current);
+    const chgEl = document.getElementById('c-chg1y');
+    chgEl.textContent = fmtPct(p.chg_1y) + ' ' + t('weekly52');
+    chgEl.className = 'sym-chg ' + (p.chg_1y>=0?'up':'down');
+
+    document.getElementById('s-1w').textContent = fmtPct(p.chg_1w);
+    document.getElementById('s-1w').className = 'val ' + chgClass(p.chg_1w);
+    document.getElementById('s-4w').textContent = fmtPct(p.chg_4w);
+    document.getElementById('s-4w').className = 'val ' + chgClass(p.chg_4w);
+    document.getElementById('s-trend').textContent = fmtPct(p.trend_pct_week);
+    document.getElementById('s-trend').className = 'val ' + chgClass(p.trend_pct_week);
+    document.getElementById('s-vol').textContent = p.volatility.toFixed(1) + '%';
+    document.getElementById('s-min').textContent = fmtCOP(p.yr_min);
+    document.getElementById('s-max').textContent = fmtCOP(p.yr_max);
+
+    const series = metric==='precio' ? p.series : p.supply;
+    buildChart(series.length>1?series:p.series, (metric==='precio'?p.chg_1y:1)>=0);
+
+    document.getElementById('r-min').textContent = fmtCOP(p.yr_min);
+    document.getElementById('r-max').textContent = fmtCOP(p.yr_max);
+    document.getElementById('r-dot').style.left = (p.pos_in_range*100).toFixed(1) + '%';
+
+    const cities = p.cities.slice().sort(function(a,b){ return b.precio-a.precio; });
+    document.getElementById('city-grid').innerHTML = cities.length ? cities.map(function(c){
+      return '<div class="city-tile"><div class="c-name">' + cityLabel(c.ciudad) + '</div><div class="c-price mono">' + fmtCOP(c.precio) + '</div></div>';
+    }).join('') : '<span style="color:var(--ink-faint); font-size:.8rem;">' + t('noCityData') + '</span>';
+
+    renderForecast(p);
+  }
+
+  function renderForecast(p){
+    const f = p.forecast;
+    if(!f){ return; }
+    document.getElementById('forecast-meta').textContent = f.window_weeks + ' ' + t('forecastMeta');
+    document.getElementById('fc-price-7d').textContent = fmtCOP(f.f7);
+    document.getElementById('fc-ci-7d').textContent = fmtCOP(f.f7_low) + ' – ' + fmtCOP(f.f7_high);
+    document.getElementById('fc-price-30d').textContent = fmtCOP(f.f30);
+    document.getElementById('fc-ci-30d').textContent = fmtCOP(f.f30_low) + ' – ' + fmtCOP(f.f30_high);
+
+    const signalEl = document.getElementById('fc-signal');
+    const sigClass = f.signal === 'SUBIR' ? 'subir' : (f.signal === 'BAJAR' ? 'bajar' : 'estable');
+    const sigArrow = f.signal === 'SUBIR' ? '▲' : (f.signal === 'BAJAR' ? '▼' : '▬');
+    const sigLabel = f.signal === 'SUBIR' ? t('signalSubir') : (f.signal === 'BAJAR' ? t('signalBajar') : t('signalEstable'));
+    signalEl.className = 'signal-badge ' + sigClass;
+    signalEl.innerHTML = '<span class="arrow">' + sigArrow + '</span> ' + sigLabel;
+
+    const trendKey = f.trend_label === 'alcista' ? 'trendAlcista' : (f.trend_label === 'bajista' ? 'trendBajista' : 'trendEstable');
+    document.getElementById('fc-trend').textContent = t(trendKey) + ' (' + (f.slope_pct_week>0?'+':'') + f.slope_pct_week.toFixed(1) + '%/sem)';
+  }
+
+  function rankRow(p, i, valFmt){
+    return '<div class="rank-row"><div class="rank-name"><span class="rank-num">' + (i+1) + '</span>' + prodLabel(p) + '</div><div class="rank-val ' + chgClass(p.chg_1y) + '">' + valFmt(p) + '</div></div>';
+  }
+  function renderInsights(){
+    document.getElementById('rank-gainers').innerHTML = insights.top_gainers.map(function(p,i){ return rankRow(p,i,function(p){ return fmtPct(p.chg_1y); }); }).join('');
+    document.getElementById('rank-losers').innerHTML = insights.top_losers.map(function(p,i){ return rankRow(p,i,function(p){ return fmtPct(p.chg_1y); }); }).join('');
+    document.getElementById('rank-volatile').innerHTML = insights.most_volatile.map(function(p,i){
+      return '<div class="rank-row"><div class="rank-name"><span class="rank-num">' + (i+1) + '</span>' + prodLabel(p) + '</div><div class="rank-val">' + p.volatility.toFixed(1) + '%</div></div>';
+    }).join('');
+
+    const catColors = {frutas:'var(--teal-500)', verduras:'var(--up)', granos:'var(--navy-700)', tuberculos:'#c98a2e', carnes:'var(--down)', procesados:'#8a6fb0'};
+    const maxAbs = Math.max.apply(null, insights.category_performance.map(function(c){ return Math.abs(c.avg_chg_1y); }).concat([1]));
+    document.getElementById('cat-bars').innerHTML = insights.category_performance.map(function(c){
+      const w = Math.min(100, Math.abs(c.avg_chg_1y)/maxAbs*100);
+      const col = catColors[c.categoria] || 'var(--teal-500)';
+      return '<div class="cat-bar-row">' +
+        '<span class="cat-name">' + catLabel(c.categoria) + '</span>' +
+        '<div class="cat-bar-track"><div class="cat-bar-fill" style="width:' + w + '%; left:0; background:' + col + ';"></div></div>' +
+        '<span class="cat-bar-val ' + chgClass(c.avg_chg_1y) + '">' + fmtPct(c.avg_chg_1y) + '</span>' +
+      '</div>';
+    }).join('');
+  }
+
+  function renderNarrative(){
+    const b = insights.market_breadth;
+    const topCat = insights.category_performance[0];
+    const worstCat = insights.category_performance[insights.category_performance.length-1];
+    const g1 = insights.top_gainers[0], l1 = insights.top_losers[0], v1 = insights.most_volatile[0];
+    const avg4w = insights.top_gainers.concat(insights.top_losers).reduce(function(a,p){ return a+p.chg_4w; },0)/(insights.top_gainers.length+insights.top_losers.length);
+
+    const narrative = lang === 'es' ? [
+      'De los ' + b.n + ' productos con historial completo, <strong>' + b.up + ' subieron de precio</strong> y <strong>' + b.down + ' bajaron</strong> en las últimas 52 semanas — la canasta se movió en promedio <strong>' + fmtPct(b.avg_chg_1y) + '</strong>.',
+      '<strong>' + prodLabel(g1) + '</strong> lidera las alzas del año con <strong class="up-txt">' + fmtPct(g1.chg_1y) + '</strong>, mientras <strong>' + prodLabel(l1) + '</strong> es el que más se abarató, con <strong class="down-txt">' + fmtPct(l1.chg_1y) + '</strong>.',
+      'La categoría <strong>' + catLabel(topCat.categoria) + '</strong> es la de mejor desempeño (' + fmtPct(topCat.avg_chg_1y) + ' promedio), frente a <strong>' + catLabel(worstCat.categoria) + '</strong> (' + fmtPct(worstCat.avg_chg_1y) + ').',
+      '<strong>' + prodLabel(v1) + '</strong> es el producto más volátil, con una desviación semanal de <strong>' + v1.volatility.toFixed(1) + '%</strong> — sus precios cambian de forma más brusca que el resto de la canasta.',
+      'El precio típico de la canasta se movió <strong>' + fmtPct(avg4w) + '</strong> en las últimas 4 semanas entre los productos más extremos, señal de que el ajuste reciente aún no se estabiliza.',
+      'Con datos desde <strong>' + fmtDate(meta.start_date) + '</strong> hasta <strong>' + fmtDate(meta.max_date) + '</strong>, la ventana cubre exactamente un ciclo agrícola anual para comparar cosechas.',
+    ] : [
+      'Of the ' + b.n + ' products with a full year of history, <strong>' + b.up + ' rose in price</strong> and <strong>' + b.down + ' fell</strong> over the last 52 weeks — the basket moved <strong>' + fmtPct(b.avg_chg_1y) + '</strong> on average.',
+      '<strong>' + prodLabel(g1) + '</strong> leads this year’s gains at <strong class="up-txt">' + fmtPct(g1.chg_1y) + '</strong>, while <strong>' + prodLabel(l1) + '</strong> got cheapest, down <strong class="down-txt">' + fmtPct(l1.chg_1y) + '</strong>.',
+      '<strong>' + catLabel(topCat.categoria) + '</strong> is the best-performing category (' + fmtPct(topCat.avg_chg_1y) + ' average), versus <strong>' + catLabel(worstCat.categoria) + '</strong> (' + fmtPct(worstCat.avg_chg_1y) + ').',
+      '<strong>' + prodLabel(v1) + '</strong> is the most volatile product, with a weekly deviation of <strong>' + v1.volatility.toFixed(1) + '%</strong> — its prices swing harder than the rest of the basket.',
+      'The typical basket price moved <strong>' + fmtPct(avg4w) + '</strong> over the last 4 weeks among the most extreme products, a sign the recent adjustment hasn’t settled yet.',
+      'With data from <strong>' + fmtDate(meta.start_date) + '</strong> to <strong>' + fmtDate(meta.max_date) + '</strong>, the window covers exactly one agricultural cycle for comparing harvests.',
+    ];
+    document.getElementById('narrative-list').innerHTML = narrative.map(function(x){ return '<li>' + x + '</li>'; }).join('');
+  }
+
+  function renderAll(){
+    applyStaticText();
+    renderTicker();
+    renderFilters();
+    renderWatchlist();
+    renderMain();
+    renderInsights();
+    renderNarrative();
+  }
+
+  document.getElementById('lang-es').addEventListener('click', function(){
+    if(lang==='es') return;
+    lang='es';
+    document.getElementById('lang-es').classList.add('active');
+    document.getElementById('lang-en').classList.remove('active');
+    document.documentElement.setAttribute('lang','es');
+    renderAll();
+  });
+  document.getElementById('lang-en').addEventListener('click', function(){
+    if(lang==='en') return;
+    lang='en';
+    document.getElementById('lang-en').classList.add('active');
+    document.getElementById('lang-es').classList.remove('active');
+    document.documentElement.setAttribute('lang','en');
+    renderAll();
+  });
+
+  renderAll();
+})();
+</script>
