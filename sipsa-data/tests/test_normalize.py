@@ -4,10 +4,11 @@ from uuid import uuid4
 
 import duckdb
 import pandas as pd
+import pytest
 
 from sipsa.config import Settings
 from sipsa.ingest.pipeline import initialize_database, run_ingest
-from sipsa.ingest.normalize import normalize_prices
+from sipsa.ingest.normalize import match_producto, normalize_abastecimiento, normalize_city, normalize_prices
 from sipsa.sources.seed import SeedAdapter
 
 
@@ -80,6 +81,52 @@ def test_normalize_mapea_unidades_agrega_mercados_y_registra_no_mapeados():
         unmapped_path.unlink(missing_ok=True)
 
 
+def test_normalize_city_unifica_acentos_y_separa_mercado_sin_descartar_ciudades():
+    """Detecta ciudades duplicadas por mayúsculas/acentos o pérdida de ciudades no configuradas."""
+    assert normalize_city("BOGOTA, D.C.") == "Bogotá"
+    assert normalize_city("MEDELLIN") == "Medellín"
+    assert normalize_city("Cali, Santa Helena") == "Cali"
+    assert normalize_city("Ipiales (Nariño), Centro de acopio") == "Ipiales"
+    assert normalize_city("SAN JOSÉ DE CÚCUTA") == "Cúcuta"
+
+
+def test_normalize_abastecimiento_suma_mercados_y_registra_no_mapeados():
+    """Detecta toneladas sin agregar por ciudad o productos desconocidos omitidos del archivo de auditoría."""
+    unmapped_path = Path("data") / f"test-unmapped-supply-{uuid4().hex}.csv"
+    raw = pd.DataFrame([
+        {"fecha": "2026-07-01", "producto_raw": "Papa pastusa",
+         "ciudad_raw": "Bogotá, D.C., Corabastos", "toneladas": 10.5, "fuente": "soap_dane"},
+        {"fecha": "2026-07-01", "producto_raw": "Papa pastusa",
+         "ciudad_raw": "Bogotá, D.C., Paloquemao", "toneladas": 2.5, "fuente": "soap_dane"},
+        {"fecha": "2026-07-01", "producto_raw": "Producto imposible",
+         "ciudad_raw": "Ipiales (Nariño), Centro de acopio", "toneladas": 7, "fuente": "soap_dane"},
+    ])
+    try:
+        result = normalize_abastecimiento(raw, unmapped_path=unmapped_path)
+        assert result.to_dict("records") == [{
+            "fecha": date(2026, 7, 1), "producto_id": "papa_pastusa",
+            "ciudad": "Bogotá", "toneladas": 13.0, "fuente": "soap_dane",
+        }]
+        assert pd.read_csv(unmapped_path)["producto_raw"].tolist() == ["Producto imposible"]
+    finally:
+        unmapped_path.unlink(missing_ok=True)
+
+
+@pytest.mark.parametrize(("nombre", "producto_id"), [
+    ("Arveja verde en vaina", "arveja"),
+    ("Cebolla cabezona blanca", "cebolla_cabezona"),
+    ("Piña *", "pina"),
+    ("Plátano hartón verde", "platano_harton"),
+    ("Carne de pollo", "pollo"),
+    ("Lechuga crespa", "lechuga"),
+    ("Naranja Valencia y/o Sweet", "naranja"),
+    ("Maíz Blanco", "maiz"),
+])
+def test_aliases_sipsa_inequivocos_aprovechan_datos_reales(nombre, producto_id):
+    """Detecta denominaciones SIPSA equivalentes enviadas por error a no mapeados."""
+    assert match_producto(nombre) == producto_id
+
+
 def test_auto_conserva_filas_reales_y_completa_huecos_con_seed():
     """Detecta que el fallback reemplace datos reales o deje el histórico incompleto."""
     class ShortRealAdapter:
@@ -112,4 +159,61 @@ def test_auto_conserva_filas_reales_y_completa_huecos_con_seed():
         assert counts["seed"] == 104 * 40 * 3 - 2
     finally:
         Path(result["raw_file"]).unlink(missing_ok=True) if "result" in locals() else None
+        db_path.unlink(missing_ok=True)
+
+
+def test_ingest_soap_carga_abastecimiento_y_avanza_desde_ingest_log():
+    """Detecta que el pipeline ignore abastecimiento o vuelva a pedir todo el histórico SOAP."""
+    class IncrementalSoapAdapter:
+        name = "soap_dane"
+
+        def __init__(self):
+            self.price_starts = []
+
+        def available(self):
+            return True
+
+        def fetch_precios(self, desde, hasta):
+            self.price_starts.append(desde)
+            if len(self.price_starts) > 1:
+                return pd.DataFrame(columns=[
+                    "fecha", "producto_raw", "mercado_raw", "ciudad_raw", "precio_prom",
+                    "precio_min", "precio_max", "unidad_raw", "fuente",
+                ])
+            return pd.DataFrame([{
+                "fecha": hasta, "producto_raw": "papa pastusa", "mercado_raw": "Bogotá",
+                "ciudad_raw": "Bogotá", "precio_prom": 2000, "precio_min": None,
+                "precio_max": None, "unidad_raw": "kg", "fuente": self.name,
+            }])
+
+        def fetch_abastecimiento(self, desde, hasta):
+            if len(self.price_starts) > 1:
+                return pd.DataFrame(columns=["fecha", "producto_raw", "ciudad_raw", "toneladas", "fuente"])
+            return pd.DataFrame([{
+                "fecha": hasta, "producto_raw": "papa pastusa",
+                "ciudad_raw": "Bogotá, D.C., Corabastos", "toneladas": 12.5,
+                "fuente": self.name,
+            }])
+
+    adapter = IncrementalSoapAdapter()
+    db_path = Path("data") / f"test-soap-ingest-{uuid4().hex}.duckdb"
+    first = second = None
+    try:
+        settings = Settings(_env_file=None, db_path=db_path, hist_weeks=2)
+        first = run_ingest("auto", settings, adapters=[adapter])
+        second = run_ingest("auto", settings, adapters=[adapter])
+        with duckdb.connect(str(db_path), read_only=True) as conn:
+            supply = conn.execute(
+                "SELECT fecha,producto_id,ciudad,toneladas FROM fact_abastecimiento"
+            ).fetchall()
+        assert supply == [(date.today(), "papa_pastusa", "Bogotá", 12.5)]
+        assert adapter.price_starts[1] == date.today() + pd.Timedelta(days=1)
+        assert second["fuente"] == "soap_dane"
+        assert second["filas_insertadas"] == 0
+    finally:
+        for result in (first, second):
+            if result:
+                Path(result["raw_file"]).unlink(missing_ok=True)
+                if result.get("raw_supply_file"):
+                    Path(result["raw_supply_file"]).unlink(missing_ok=True)
         db_path.unlink(missing_ok=True)

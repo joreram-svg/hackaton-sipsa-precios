@@ -1,6 +1,6 @@
 # SIPSA Data
 
-Servicio local de precios mayoristas semanales para Colombia. Ingiere fuentes DANE cuando están disponibles, conserva un histórico DuckDB a nivel `fecha + producto + ciudad`, calcula señales y las expone por REST, MCP, dashboard web y Telegram. Si una fuente externa o la base no responden, la demo degrada a seed o snapshot sin ocultarlo.
+Servicio de precios mayoristas semanales para Colombia. Ingiere fuentes DANE cuando están disponibles, conserva un histórico en DuckDB local o PostgreSQL compartido a nivel `fecha + producto + ciudad`, calcula señales y las expone por REST, MCP, dashboard web y Telegram. Si una fuente externa o la base no responden, la demo degrada a seed o snapshot sin ocultarlo.
 
 ## Requisitos e instalación
 
@@ -31,7 +31,37 @@ Copie la configuración y cambie los valores necesarios:
 Copy-Item .env.example .env
 ```
 
-Variables principales: `DB_PATH`, `ADMIN_TOKEN`, `SOURCE_PRIORITY`, `SOCRATA_DATASET_ID`, `CIUDADES`, `HIST_WEEKS`, `API_PORT`, `MCP_PORT`, `TZ`, `TELEGRAM_BOT_TOKEN` y `TELEGRAM_CHAT_IDS`.
+Variables principales: `DB_BACKEND`, `DB_PATH`, `SUPABASE_DB_URL`, `ADMIN_TOKEN`, `SOURCE_PRIORITY`, `SOCRATA_DATASET_ID`, `CIUDADES`, `HIST_WEEKS`, `API_PORT`, `MCP_PORT`, `TZ`, `TELEGRAM_BOT_TOKEN` y `TELEGRAM_CHAT_IDS`.
+
+## Base de datos compartida (Supabase)
+
+DuckDB sigue siendo el backend predeterminado para desarrollo local. Para leer y refrescar la base compartida, cada integrante debe guardar en su propio `.env` la URL del **Session Pooler** de Supabase; no se debe copiar al código ni versionar el archivo:
+
+```dotenv
+DB_BACKEND=postgres
+SUPABASE_DB_URL=postgresql://postgres.<project-ref>:<password>@aws-0-us-east-2.pooler.supabase.com:5432/postgres
+```
+
+También se puede seleccionar PostgreSQL sólo para una sesión de PowerShell:
+
+```powershell
+$env:DB_BACKEND = "postgres"
+$env:PYTHONPATH = (Resolve-Path .\src).Path
+python -m uvicorn sipsa.api.main:app --host 127.0.0.1 --port 8000
+```
+
+Un compañero puede consultar las tablas `dim_producto`, `fact_precio`, `fact_abastecimiento` e `ingest_log` desde **Supabase Dashboard → Table Editor**, o ejecutar el proyecto localmente con su propia `SUPABASE_DB_URL`. La conexión directa `db.*.supabase.co` requiere IPv6 en algunas redes; use el Session Pooler cuando necesite IPv4.
+
+La carga inicial o su reejecución idempotente usa los dos CSV reales de `data/raw/`:
+
+```powershell
+$env:PYTHONPATH = (Resolve-Path .\src).Path
+python scripts/load_real_data_to_supabase.py
+```
+
+El script aplica `schema_postgres.sql`, sincroniza el catálogo y hace upsert por las PK de ambas tablas. Los productos que no corresponden con certeza al catálogo quedan en `data/raw/unmapped.csv`; no detienen la transacción. `CIUDADES` conserva las ciudades preferidas de la UI y los snapshots, pero **no filtra el almacenamiento**: se guardan todas las ciudades que lleguen de SIPSA.
+
+Las consultas de `repo.py` son compartidas entre motores. La capa de conexión convierte los marcadores `?` de DuckDB a `%s` para psycopg2; `schema_postgres.sql` contiene además las variantes PostgreSQL de intervalos y extracción de época usadas por las vistas.
 
 ## Arranque exacto
 
@@ -176,12 +206,14 @@ Los errores siguen `{ "error": { "code": "...", "message": "..." } }`.
 ## Datos y fallback
 
 - `excel_dane` descubre anexos XLS/XLSX semanales y registra URLs en `data/raw/sources.json`.
-- `soap_dane` importa `zeep` solo si está instalado y usa el WSDL SIPSA.
+- `soap_dane` importa `zeep` sólo si está instalado, llama sin parámetros a `promediosSipsaCiudad` y `promedioAbasSipsaMesMadr`, filtra localmente desde la última ingesta y conserva cachés Parquet por un día.
 - `socrata` pagina de 50.000 filas; queda deshabilitado si `SOCRATA_DATASET_ID` está vacío.
 - `seed` produce 104 semanas deterministas para 40 productos y tres ciudades.
 - Los nombres no mapeados se agregan a `data/raw/unmapped.csv` sin detener la ingesta.
 - Cada parquet crudo queda en `data/raw/`; no se borra automáticamente.
 - `/v1/health` expone `fuente_activa` y `pct_seed` para que el fallback nunca sea silencioso.
+
+En este entorno de desarrollo el proxy rechazó la conexión HTTPS al WSDL de `appweb.dane.gov.co`; es un bloqueo de red del entorno, no un error del adaptador. Los CSV reales cubren el arranque y las pruebas automatizadas validan la forma confirmada de ambas respuestas SOAP, incluidos sus campos opcionales ausentes.
 
 ## Pruebas
 

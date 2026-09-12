@@ -1,6 +1,8 @@
 from functools import lru_cache
 from pathlib import Path
+from typing import Literal
 
+from pydantic import SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -13,10 +15,12 @@ class Settings(BaseSettings):
     )
 
     db_path: Path = PROJECT_ROOT / "data" / "sipsa.duckdb"
+    db_backend: Literal["duckdb", "postgres"] = "duckdb"
+    supabase_db_url: SecretStr | None = None
     admin_token: str = "change-me"
     source_priority: str = "excel_dane,soap_dane,socrata,seed"
     socrata_dataset_id: str = ""
-    ciudades: str = "Bogotá,Medellín,Cali"
+    ciudades: str = "Armenia,Barranquilla,Bogotá,Bucaramanga,Cali,Cartagena de Indias,Cúcuta,Ibagué,Manizales,Medellín,Montería,Neiva,Pasto,Pereira,Popayán,Santa Marta,Sincelejo,Tunja,Valledupar,Villavicencio"
     hist_weeks: int = 104
     api_port: int = 8000
     mcp_port: int = 8001

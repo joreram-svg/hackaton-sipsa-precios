@@ -19,6 +19,7 @@ dependencies = [
   "pyarrow>=17",
   "pydantic>=2",
   "pydantic-settings>=2",
+  "psycopg2-binary>=2.9,<3",
   "python-dotenv>=1",
   "python-telegram-bot>=21,<23",
   "uvicorn>=0.30",

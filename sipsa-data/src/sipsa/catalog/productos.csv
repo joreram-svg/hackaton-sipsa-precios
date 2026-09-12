@@ -2,10 +2,10 @@ producto_id,nombre,categoria,unidad_base,alias
 papa_pastusa,Papa pastusa,tuberculos,kg,papa pastusa|papa negra|pastusa
 papa_criolla,Papa criolla,tuberculos,kg,papa criolla|papa amarilla|criolla
 tomate_chonto,Tomate chonto,verduras,kg,tomate chonto|tomate riñón|tomate
-cebolla_cabezona,Cebolla cabezona,verduras,kg,cebolla cabezona|cebolla blanca|cebolla de huevo
+cebolla_cabezona,Cebolla cabezona,verduras,kg,cebolla cabezona|cebolla blanca|cebolla de huevo|cebolla cabezona blanca
 cebolla_larga,Cebolla larga,verduras,kg,cebolla larga|cebolla junca|cebolla de rama
 zanahoria,Zanahoria,verduras,kg,zanahoria
-platano_harton,Plátano hartón,frutas,kg,plátano hartón|platano harton|plátano verde
+platano_harton,Plátano hartón,frutas,kg,plátano hartón|platano harton|plátano verde|plátano hartón verde
 yuca,Yuca,tuberculos,kg,yuca|mandioca
 arroz,Arroz,granos,kg,arroz|arroz blanco|arroz de primera
 frijol,Fríjol,granos,kg,fríjol|frijol|fríjol cargamanto
@@ -13,30 +13,29 @@ lenteja,Lenteja,granos,kg,lenteja|lenteja importada
 aguacate,Aguacate,frutas,kg,aguacate|aguacate papelillo|aguacate hass
 banano,Banano,frutas,kg,banano|banano criollo
 limon_tahiti,Limón Tahití,frutas,kg,limón tahití|limon tahiti|limón
-naranja,Naranja,frutas,kg,naranja|naranja valencia
+naranja,Naranja,frutas,kg,naranja|naranja valencia|naranja valencia y/o sweet
 mango,Mango,frutas,kg,mango|mango tommy|mango común
 papaya,Papaya,frutas,kg,papaya|papaya maradol
-pina,Piña,frutas,kg,piña|pina|piña gold
+pina,Piña,frutas,kg,piña|pina|piña gold|piña *
 mora,Mora,frutas,kg,mora|mora de castilla
 lulo,Lulo,frutas,kg,lulo
 maracuya,Maracuyá,frutas,kg,maracuyá|maracuya
-lechuga,Lechuga,verduras,kg,lechuga|lechuga batavia
+lechuga,Lechuga,verduras,kg,lechuga|lechuga batavia|lechuga crespa
 repollo,Repollo,verduras,kg,repollo|repollo blanco
 pimenton,Pimentón,verduras,kg,pimentón|pimenton
 habichuela,Habichuela,verduras,kg,habichuela
-arveja,Arveja,granos,kg,arveja|arveja verde
+arveja,Arveja,granos,kg,arveja|arveja verde|arveja verde en vaina
 ahuyama,Ahuyama,verduras,kg,ahuyama|zapallo
 huevo,Huevo,procesados,kg,huevo|huevo rojo|huevo blanco
-pollo,Pollo,carnes,kg,pollo|pollo entero|pechuga de pollo
+pollo,Pollo,carnes,kg,pollo|pollo entero|pechuga de pollo|carne de pollo
 res,Carne de res,carnes,kg,carne de res|res|carne de vacuno
 cerdo,Carne de cerdo,carnes,kg,carne de cerdo|cerdo
 panela,Panela,procesados,kg,panela|panela cuadrada
 azucar,Azúcar,procesados,kg,azúcar|azucar|azúcar sulfitada
 aceite,Aceite vegetal,procesados,kg,aceite|aceite vegetal|aceite de cocina
-maiz,Maíz,granos,kg,maíz|maiz|maíz amarillo
+maiz,Maíz,granos,kg,maíz|maiz|maíz amarillo|maíz blanco
 arracacha,Arracacha,tuberculos,kg,arracacha|apio criollo
 coliflor,Coliflor,verduras,kg,coliflor
 brocoli,Brócoli,verduras,kg,brócoli|brocoli
 espinaca,Espinaca,verduras,kg,espinaca
 fresa,Fresa,frutas,kg,fresa
-

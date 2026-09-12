@@ -1,10 +1,9 @@
 from typing import Any
 
-import pandas as pd
-
 from sipsa.analytics.forecast import forecast
 from sipsa.analytics.signals import opportunity_signal, reason_for
 from sipsa.config import Settings, get_settings
+from sipsa.db.backend import open_database
 
 
 class Repository:
@@ -12,9 +11,7 @@ class Repository:
         self.settings = settings or get_settings()
 
     def _connect(self):
-        import duckdb
-
-        return duckdb.connect(str(self.settings.db_path), read_only=True)
+        return open_database(self.settings, read_only=True)
 
     @staticmethod
     def _rows(cursor) -> list[dict[str, Any]]:

@@ -18,6 +18,35 @@ UNIDAD_FACTOR = {
     "bulto": 50.0,
 }
 
+CITY_NAMES = {
+    "armenia": "Armenia",
+    "barranquilla": "Barranquilla",
+    "bogota": "Bogotá",
+    "bogota d.c.": "Bogotá",
+    "bucaramanga": "Bucaramanga",
+    "cali": "Cali",
+    "cartagena": "Cartagena de Indias",
+    "cartagena de indias": "Cartagena de Indias",
+    "cucuta": "Cúcuta",
+    "san jose de cucuta": "Cúcuta",
+    "florencia": "Florencia",
+    "ibague": "Ibagué",
+    "ipiales": "Ipiales",
+    "manizales": "Manizales",
+    "medellin": "Medellín",
+    "monteria": "Montería",
+    "neiva": "Neiva",
+    "pasto": "Pasto",
+    "pereira": "Pereira",
+    "popayan": "Popayán",
+    "santa marta": "Santa Marta",
+    "sincelejo": "Sincelejo",
+    "tibasosa": "Tibasosa",
+    "tunja": "Tunja",
+    "valledupar": "Valledupar",
+    "villavicencio": "Villavicencio",
+}
+
 
 def _plain(value: object) -> str:
     text = unicodedata.normalize("NFKD", str(value).strip().lower())
@@ -34,6 +63,52 @@ def _catalog_aliases(catalog_path: Path | None = None) -> tuple[pd.DataFrame, di
         for value in values:
             aliases[_plain(value)] = row.producto_id
     return catalog, aliases
+
+
+def normalize_city(value: object) -> str:
+    """Normaliza ciudad y elimina el nombre de mercado conservando ciudades nuevas."""
+    if pd.isna(value):
+        return ""
+    city = str(value).strip()
+    city = city.split(",", 1)[0]
+    city = re.sub(r"\s*\([^)]*\)\s*$", "", city).strip()
+    key = _plain(city)
+    return CITY_NAMES.get(key, city.title())
+
+
+def _map_product_ids(data: pd.DataFrame, aliases: dict[str, str]) -> pd.Series:
+    normalized_names = data["producto_raw"].map(_plain)
+    product_ids = normalized_names.map(aliases)
+    missing = product_ids.isna()
+    if missing.any():
+        keys = list(aliases)
+        fuzzy: dict[str, str | None] = {}
+        for candidate in normalized_names[missing].unique():
+            close = get_close_matches(candidate, keys, n=1, cutoff=0.85)
+            if close:
+                fuzzy[candidate] = aliases[close[0]]
+        product_ids = product_ids.fillna(normalized_names.map(fuzzy))
+    return product_ids
+
+
+def map_product_ids(values: pd.Series, catalog_path: Path | None = None) -> pd.Series:
+    """Mapea una serie de nombres con las mismas reglas usadas por las ingestas."""
+    _, aliases = _catalog_aliases(catalog_path)
+    return _map_product_ids(pd.DataFrame({"producto_raw": values}), aliases)
+
+
+def _write_unmapped(data: pd.DataFrame, path: Path) -> None:
+    if data.empty:
+        return
+    columns = ["fecha", "producto_raw", "mercado_raw", "ciudad_raw", "unidad_raw", "fuente"]
+    audit = data.reindex(columns=columns)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    if path.exists():
+        audit = pd.concat(
+            [pd.read_csv(path, dtype=str, keep_default_na=False), audit],
+            ignore_index=True,
+        )
+    audit.drop_duplicates().to_csv(path, index=False)
 
 
 def match_producto(nombre_raw: str, catalog_path: Path | None = None) -> str | None:
@@ -57,22 +132,11 @@ def normalize_prices(
         return pd.DataFrame(columns=output_columns)
     _, aliases = _catalog_aliases(catalog_path)
     data = raw.copy()
-    normalized_names = data["producto_raw"].map(_plain)
-    data["producto_id"] = normalized_names.map(aliases)
-    missing = data["producto_id"].isna()
-    if missing.any():
-        keys = list(aliases)
-        for index in data.index[missing]:
-            close = get_close_matches(normalized_names.loc[index], keys, n=1, cutoff=0.85)
-            if close:
-                data.at[index, "producto_id"] = aliases[close[0]]
+    data["producto_id"] = _map_product_ids(data, aliases)
     unmapped = data[data["producto_id"].isna()].copy()
     if not unmapped.empty:
         path = unmapped_path or PROJECT_ROOT / "data" / "raw" / "unmapped.csv"
-        path.parent.mkdir(parents=True, exist_ok=True)
-        unmapped[["fecha", "producto_raw", "mercado_raw", "ciudad_raw", "unidad_raw", "fuente"]].to_csv(
-            path, mode="a", header=not path.exists(), index=False
-        )
+        _write_unmapped(unmapped, path)
     data = data[data["producto_id"].notna()].copy()
     data["unidad_normalizada"] = data["unidad_raw"].map(_plain)
     data["factor"] = data["unidad_normalizada"].map(UNIDAD_FACTOR)
@@ -81,11 +145,47 @@ def normalize_prices(
     data = data[data["precio"].notna() & (data["precio"] > 0)].copy()
     dates = pd.to_datetime(data["fecha"], errors="coerce")
     data["fecha"] = (dates - pd.to_timedelta(dates.dt.weekday, unit="D")).dt.date
-    data["ciudad"] = data["ciudad_raw"].astype(str).str.strip()
+    data["ciudad"] = data["ciudad_raw"].map(normalize_city)
+    data = data[data["ciudad"] != ""].copy()
     result = (
         data.groupby(["fecha", "producto_id", "ciudad", "fuente"], as_index=False)["precio"]
         .mean()
         .loc[:, output_columns]
     )
     result["precio"] = result["precio"].round(2)
+    return result.sort_values(["fecha", "producto_id", "ciudad"]).reset_index(drop=True)
+
+
+def normalize_abastecimiento(
+    raw: pd.DataFrame,
+    catalog_path: Path | None = None,
+    unmapped_path: Path | None = None,
+) -> pd.DataFrame:
+    """Normaliza abastecimiento mensual y agrega los mercados a nivel ciudad."""
+    output_columns = ["fecha", "producto_id", "ciudad", "toneladas", "fuente"]
+    if raw.empty:
+        return pd.DataFrame(columns=output_columns)
+    _, aliases = _catalog_aliases(catalog_path)
+    data = raw.copy()
+    data["producto_id"] = _map_product_ids(data, aliases)
+    unmapped = data[data["producto_id"].isna()].copy()
+    if not unmapped.empty:
+        path = unmapped_path or PROJECT_ROOT / "data" / "raw" / "unmapped.csv"
+        _write_unmapped(unmapped, path)
+    data = data[data["producto_id"].notna()].copy()
+    data["fecha"] = pd.to_datetime(data["fecha"], errors="coerce").dt.date
+    data["ciudad"] = data["ciudad_raw"].map(normalize_city)
+    data["toneladas"] = pd.to_numeric(data["toneladas"], errors="coerce")
+    data = data[
+        data["fecha"].notna()
+        & (data["ciudad"] != "")
+        & data["toneladas"].notna()
+        & (data["toneladas"] > 0)
+    ].copy()
+    result = (
+        data.groupby(["fecha", "producto_id", "ciudad", "fuente"], as_index=False)["toneladas"]
+        .sum()
+        .loc[:, output_columns]
+    )
+    result["toneladas"] = result["toneladas"].round(6)
     return result.sort_values(["fecha", "producto_id", "ciudad"]).reset_index(drop=True)
