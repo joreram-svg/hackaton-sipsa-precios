@@ -13,6 +13,11 @@ from sipsa.service import build_weekly_summary
 
 LOGGER = logging.getLogger(__name__)
 PROFILES = {"consumidor", "restaurante", "mayorista"}
+RECO_TABLES = {
+    "consumidor": "recomendaciones_consumidor",
+    "restaurante": "recomendaciones_restaurante",
+    "mayorista": "recomendaciones_tendero",
+}
 
 
 def _plain(value: str) -> str:
@@ -37,11 +42,56 @@ def summary_text(repo: Repository, ciudad: str = "Bogotá", perfil: str = "consu
     return build_weekly_summary(repo, ciudad, perfil)["texto"]
 
 
+def recomendaciones_text(ciudad: str, perfil: str, settings: Settings | None = None) -> str:
+    """Lee las recomendaciones reales (tabla recomendaciones_<perfil>) en Supabase para una ciudad."""
+    settings = settings or get_settings()
+    table = RECO_TABLES.get(perfil)
+    if table is None:
+        return f"Perfil no reconocido: {perfil}"
+    if not settings.supabase_db_url:
+        return "Recomendaciones no disponibles: la base compartida (Supabase) no está configurada."
+
+    import psycopg2
+
+    try:
+        conn = psycopg2.connect(settings.supabase_db_url.get_secret_value(), connect_timeout=8)
+    except Exception as exc:  # noqa: BLE001
+        return f"No se pudo conectar a la base de recomendaciones: {exc}"
+
+    try:
+        with conn, conn.cursor() as cur:
+            cur.execute(
+                f"SELECT tipo, estado, contenido FROM {table} "
+                "WHERE ciudad = %s AND estado <> 'requiere_configuracion' "
+                "ORDER BY tipo",
+                (ciudad,),
+            )
+            rows = cur.fetchall()
+    finally:
+        conn.close()
+
+    if not rows:
+        return f"Sin recomendaciones disponibles para {perfil} en {ciudad}."
+
+    lines = [f"Recomendaciones para {perfil} en {ciudad}:"]
+    for tipo, estado, contenido in rows:
+        mensaje = (contenido or {}).get("mensaje", tipo)
+        items = (contenido or {}).get("items", [])
+        lines.append(f"\n• {tipo} ({estado}): {mensaje}")
+        for item in items[:2]:
+            nombre = item.get("nombre", item.get("producto_id", "?"))
+            precio = item.get("precio")
+            precio_txt = f" - ${precio:,.0f}/kg" if isinstance(precio, (int, float)) else ""
+            lines.append(f"   - {nombre}{precio_txt}")
+    return "\n".join(lines)
+
+
 async def start_command(update: Update, _: ContextTypes.DEFAULT_TYPE) -> None:
     if update.effective_message:
         await update.effective_message.reply_text(
             "Hola. Soy SIPSA Data. Usa /hoy [ciudad] [perfil], "
-            "/precio <producto> o /alertas [ciudad]."
+            "/precio <producto>, /alertas [ciudad] o "
+            "/recomendaciones [ciudad] [consumidor|restaurante|mayorista]."
         )
 
 
@@ -78,6 +128,20 @@ async def precio_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     )
 
 
+async def recomendaciones_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    if not update.effective_message:
+        return
+    repo = Repository()
+    args = list(context.args)
+    perfil = args.pop().lower() if args and args[-1].lower() in PROFILES else "consumidor"
+    try:
+        ciudad = _resolve_city(" ".join(args) if args else None, repo)
+        text = recomendaciones_text(ciudad, perfil)
+    except LookupError as exc:
+        text = str(exc)
+    await update.effective_message.reply_text(text)
+
+
 async def alertas_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     if not update.effective_message:
         return
@@ -105,6 +169,7 @@ def build_application(settings: Settings | None = None) -> Application:
     application.add_handler(CommandHandler("hoy", hoy_command))
     application.add_handler(CommandHandler("precio", precio_command))
     application.add_handler(CommandHandler("alertas", alertas_command))
+    application.add_handler(CommandHandler("recomendaciones", recomendaciones_command))
     return application
 
 
