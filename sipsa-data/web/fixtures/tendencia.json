@@ -1,0 +1,12 @@
+{
+  "mode": "demo",
+  "generated_at": "2026-09-12T00:00:00-05:00",
+  "data": [
+    {
+      "product_id": "tomate-chonto",
+      "city": "Bogotá",
+      "title": "Cambios recientes · Tomate chonto",
+      "lines": ["Semana 1 · $3.100/kg", "Semana 2 · $3.200/kg", "Serie ficticia para validar presentación"]
+    }
+  ]
+}

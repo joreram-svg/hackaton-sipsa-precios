@@ -1,5 +1,6 @@
 from functools import lru_cache
 from pathlib import Path
+from typing import Literal
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -21,6 +22,10 @@ class Settings(BaseSettings):
     api_port: int = 8000
     mcp_port: int = 8001
     tz: str = "America/Bogota"
+    telegram_bot_token: str = ""
+    telegram_state_path: Path = PROJECT_ROOT / "data" / "ui_state.sqlite"
+    telegram_data_mode: Literal["demo", "api"] = "demo"
+    telegram_api_base_url: str = "http://127.0.0.1:8000"
 
     @property
     def source_names(self) -> list[str]:

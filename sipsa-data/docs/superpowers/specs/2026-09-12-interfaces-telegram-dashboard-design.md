@@ -1,4 +1,4 @@
-# Diseño de interfaces SIPSA: Telegram y dashboard empresarial
+# Diseño de interfaces Baskio: Telegram y dashboard empresarial
 
 ## 1. Objetivo
 
@@ -56,7 +56,7 @@ El proveedor de datos no contiene reglas de negocio. Su responsabilidad es solic
 
 ## 5. Telegram: un bot, dos perfiles
 
-Nombre de interfaz: `SIPSA Cerca`.
+Nombre de producto e interfaz: `Baskio`.
 
 ### 5.1 Onboarding compartido
 
@@ -102,9 +102,25 @@ Este menú utiliza un tono operativo y conserva preferencias para facilitar cons
 
 ## 6. Dashboard para negocio grande
 
-Nombre de interfaz: `SIPSA Monitor`.
+Nombre de producto e interfaz: `Baskio`.
 
-### 6.1 Dirección visual
+### 6.1 Sistema de marca
+
+El archivo entregado por el usuario es la fuente oficial de identidad. Se preparan
+tres recursos derivados sin rediseñar el símbolo ni la palabra `baskio`:
+
+- Logotipo horizontal transparente para la barra superior del dashboard.
+- Símbolo de la canasta en formato cuadrado para navegación móvil y favicon.
+- Avatar cuadrado con el símbolo centrado y margen seguro para el recorte circular
+  de Telegram.
+
+La paleta parte de los colores medidos en el logotipo: azul Baskio `#1B3361`,
+turquesa Baskio `#2EA6B6`, fondo frío `#F5F7FA`, superficie `#FFFFFF` y texto
+profundo `#12213C`. El logotipo horizontal se usa una vez como firma principal;
+el símbolo se reserva para contextos compactos. No se emplean marcas de agua ni
+repeticiones decorativas.
+
+### 6.2 Dirección visual
 
 Se adoptan los siguientes patrones de TradingView:
 
@@ -120,7 +136,7 @@ Se adoptan los siguientes patrones de TradingView:
 
 No se copian logotipo, iconografía de marca, código, textos ni componentes propietarios.
 
-### 6.2 Estructura de la vista
+### 6.3 Estructura de la vista
 
 1. Barra superior: marca, búsqueda, `Mercados`, `Seguimiento`, `Reportes` y `Ayuda`.
 2. Encabezado de producto: categoría, producto, ciudad, unidad, precio, variación, fecha y fuente.
@@ -132,7 +148,7 @@ No se copian logotipo, iconografía de marca, código, textos ni componentes pro
 
 Los controles actualizan la presentación sin recargar toda la página. Las búsquedas y filtros se reflejan en la URL cuando sea posible para permitir vistas compartibles.
 
-### 6.3 Responsive y proporciones
+### 6.4 Responsive y proporciones
 
 - Escritorio 16:9, referencia `1440 × 900`: gráfico con proporción aproximada `2.4:1`; seguimiento a la derecha.
 - Tablet 4:3, referencia `1024 × 768`: gráfico `16:9`; seguimiento reducido o debajo según el ancho efectivo.

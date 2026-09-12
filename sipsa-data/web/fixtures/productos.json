@@ -1,0 +1,9 @@
+{
+  "mode": "demo",
+  "generated_at": "2026-09-12T00:00:00-05:00",
+  "data": [
+    {"id": "tomate-chonto", "name": "Tomate chonto", "unit": "kg"},
+    {"id": "papa-pastusa", "name": "Papa pastusa", "unit": "kg"},
+    {"id": "platano-harton", "name": "Plátano hartón", "unit": "kg"}
+  ]
+}

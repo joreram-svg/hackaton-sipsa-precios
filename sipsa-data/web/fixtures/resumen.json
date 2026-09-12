@@ -1,0 +1,42 @@
+{
+  "mode": "demo",
+  "generated_at": "2026-09-12T00:00:00-05:00",
+  "data": [
+    {
+      "city": "Bogotá",
+      "audience": "consumer",
+      "title": "Precios destacados en Bogotá",
+      "lines": ["Tomate chonto · $3.200/kg", "Papa pastusa · $2.450/kg", "Plátano hartón · $2.900/kg"]
+    },
+    {
+      "city": "Bogotá",
+      "audience": "small_business",
+      "title": "Resumen del negocio en Bogotá",
+      "lines": ["3 productos en seguimiento", "Tomate chonto · $3.200/kg", "Datos preparados para validar la interfaz"]
+    },
+    {
+      "city": "Medellín",
+      "audience": "consumer",
+      "title": "Precios destacados en Medellín",
+      "lines": ["Tomate chonto · $3.050/kg", "Papa pastusa · $2.380/kg"]
+    },
+    {
+      "city": "Medellín",
+      "audience": "small_business",
+      "title": "Resumen del negocio en Medellín",
+      "lines": ["3 productos en seguimiento", "Tomate chonto · $3.050/kg"]
+    },
+    {
+      "city": "Cali",
+      "audience": "consumer",
+      "title": "Precios destacados en Cali",
+      "lines": ["Tomate chonto · $3.100/kg", "Papa pastusa · $2.410/kg"]
+    },
+    {
+      "city": "Cali",
+      "audience": "small_business",
+      "title": "Resumen del negocio en Cali",
+      "lines": ["3 productos en seguimiento", "Tomate chonto · $3.100/kg"]
+    }
+  ]
+}

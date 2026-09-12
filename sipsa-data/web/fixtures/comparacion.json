@@ -1,0 +1,11 @@
+{
+  "mode": "demo",
+  "generated_at": "2026-09-12T00:00:00-05:00",
+  "data": [
+    {
+      "product_id": "tomate-chonto",
+      "title": "Comparación por ciudad · Tomate chonto",
+      "lines": ["Bogotá · $3.200/kg", "Medellín · $3.050/kg", "Cali · $3.100/kg"]
+    }
+  ]
+}

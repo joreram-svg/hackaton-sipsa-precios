@@ -3,6 +3,9 @@ __pycache__/
 .venv/
 venv/
 *.duckdb
+*.sqlite
+*.sqlite3
+*.sqlite-*
 data/raw/
 data/snapshot/
 .env
