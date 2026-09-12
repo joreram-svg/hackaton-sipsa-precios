@@ -14,9 +14,9 @@ from sipsa.service import build_weekly_summary
 LOGGER = logging.getLogger(__name__)
 PROFILES = {"consumidor", "restaurante", "mayorista"}
 RECO_TABLES = {
-    "consumidor": "recomendaciones_consumidor",
-    "restaurante": "recomendaciones_restaurante",
-    "mayorista": "recomendaciones_tendero",
+    "consumidor": "rec_condensada_consumidor",
+    "restaurante": "rep_condensada_restaurante",
+    "mayorista": "rec_condensada_tendero",
 }
 
 
@@ -43,7 +43,7 @@ def summary_text(repo: Repository, ciudad: str = "Bogotá", perfil: str = "consu
 
 
 def recomendaciones_text(ciudad: str, perfil: str, settings: Settings | None = None) -> str:
-    """Lee las recomendaciones reales (tabla recomendaciones_<perfil>) en Supabase para una ciudad."""
+    """Lee la recomendación condensada (tabla rec_condensada_<perfil>) en Supabase para una ciudad."""
     settings = settings or get_settings()
     table = RECO_TABLES.get(perfil)
     if table is None:
@@ -61,29 +61,19 @@ def recomendaciones_text(ciudad: str, perfil: str, settings: Settings | None = N
     try:
         with conn, conn.cursor() as cur:
             cur.execute(
-                f"SELECT tipo, estado, contenido FROM {table} "
-                "WHERE ciudad = %s AND estado <> 'requiere_configuracion' "
-                "ORDER BY tipo",
+                f"SELECT recomendacion, fuente_fecha FROM {table} WHERE ciudad = %s "
+                "ORDER BY fecha DESC LIMIT 1",
                 (ciudad,),
             )
-            rows = cur.fetchall()
+            row = cur.fetchone()
     finally:
         conn.close()
 
-    if not rows:
+    if not row:
         return f"Sin recomendaciones disponibles para {perfil} en {ciudad}."
 
-    lines = [f"Recomendaciones para {perfil} en {ciudad}:"]
-    for tipo, estado, contenido in rows:
-        mensaje = (contenido or {}).get("mensaje", tipo)
-        items = (contenido or {}).get("items", [])
-        lines.append(f"\n• {tipo} ({estado}): {mensaje}")
-        for item in items[:2]:
-            nombre = item.get("nombre", item.get("producto_id", "?"))
-            precio = item.get("precio")
-            precio_txt = f" - ${precio:,.0f}/kg" if isinstance(precio, (int, float)) else ""
-            lines.append(f"   - {nombre}{precio_txt}")
-    return "\n".join(lines)
+    recomendacion, fuente_fecha = row
+    return f"📋 {perfil.title()} en {ciudad} ({fuente_fecha}):\n\n{recomendacion}"
 
 
 PROFILE_LABELS = {
