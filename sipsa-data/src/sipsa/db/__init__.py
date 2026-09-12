@@ -1,0 +1,2 @@
+"""Persistencia y consultas DuckDB."""
+

@@ -173,7 +173,7 @@ Fechas ISO `YYYY-MM-DD`. Precios en COP/kg (float, 2 decimales). Ciudad por defe
 | GET | `/v1/tendencia/{producto_id}` | `mercado_id?, semanas?=12` | `{producto_id, mercado_id, serie:[{fecha, precio_prom}], var_1w_pct, var_4w_pct, var_52w_pct, percentil_hist, pendiente_pct_sem}` |
 | GET | `/v1/forecast/{producto_id}` | `mercado_id?, horizonte?=2` | `{producto_id, mercado_id, horizonte_semanas, precio_actual, precio_esperado, banda_inf, banda_sup, var_esperada_pct, metodo}` |
 | GET | `/v1/alertas` | `ciudad?, umbral_pct?=15, ventana?=1w\|4w` | `{fecha, alertas:[{producto_id, nombre, mercado_id, var_pct, direccion:'SUBE'\|'BAJA', precio_actual}]}` |
-| GET | `/v1/resumen-semanal` | `ciudad?, perfil?` | `{fecha, ciudad, perfil, top_comprar:[OportunidadItem x5], top_evitar:[OportunidadItem x5], alertas:[...], texto:str}` — `texto` = resumen en español listo para WhatsApp (<=600 chars, con emojis ↑↓, sin markdown) |
+| GET | `/v1/resumen-semanal` | `ciudad?, perfil?` | `{fecha, ciudad, perfil, top_comprar:[OportunidadItem x5], top_evitar:[OportunidadItem x5], alertas:[...], texto:str}` — `texto` = resumen en español listo para Telegram (<=600 chars, con emojis ↑↓, sin markdown) |
 | GET | `/v1/comparar` | `producto_id*` | `[{mercado_id, ciudad, precio_actual, var_1w_pct}]` ordenado por precio |
 | POST | `/v1/admin/ingest` | header `X-Admin-Token` | `{run_id, status, filas_insertadas, fuente}` (síncrono, timeout 120 s) |
 | POST | `/v1/admin/snapshot` | header `X-Admin-Token` | `{archivos:[...]}` |
@@ -240,5 +240,31 @@ Si a las 2:45 los adaptadores reales no funcionan en 30 min, quedarse con `seed`
 5. Productos no mapeados no rompen la ingesta y quedan en `unmapped.csv`.
 6. Tests: 3 archivos, menos de 15 tests en total, ejecutan en menos de 20 s.
 
+## 13. Interfaz de usuario (AHORA EN ALCANCE — anula la exclusión de "frontend" de la sección 12 original)
+
+Construir sobre la API del §6, sin lógica de negocio nueva (solo consumo). Esto es la tarea 4 del arquitecto del proyecto.
+
+### 13.1 Dashboard web (`sipsa-data/web/`)
+- HTML+CSS+JS vanilla (sin build step, sin framework), servido como estáticos por la misma FastAPI (`app.mount("/", StaticFiles(directory="web", html=True))`) en `/`.
+- Vista única `index.html`: selector de ciudad (dropdown, default Bogotá) y perfil (consumidor/restaurante/mayorista) → llama `GET /v1/resumen-semanal`; renderiza tarjetas "Comprar" (verde) y "Evitar" (rojo) con `razon`; tabla de `alertas`; buscador de producto que llama `GET /v1/tendencia/{producto_id}` y dibuja un sparkline SVG simple (sin librerías de charts) de las últimas 12 semanas.
+- Fetch directo al mismo origen (`fetch('/v1/...')`), manejo de error visible si la API responde `error.code`.
+- El arquitecto del proyecto dará luego un ejemplo visual de referencia para el estilo — dejar el HTML/CSS desacoplado (clases claras, sin estilos inline) para poder re-skinnear rápido sin tocar la lógica JS.
+
+### 13.2 Bot de Telegram (`src/sipsa/telegram_bot.py`)
+- Librería: `python-telegram-bot` (async, v21+). Long polling (sin webhook, más simple para demo).
+- Config nueva en `.env`: `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_IDS` (lista separada por comas, chats que reciben el push diario).
+- Comandos:
+  - `/start` → mensaje de bienvenida + cómo usar.
+  - `/hoy [ciudad] [perfil]` → llama `resumen_semanal()` (reusar función del repo/API, no re-implementar) y responde con el mismo `texto` ya generado.
+  - `/precio <producto>` → responde precio actual + `var_1w_pct`/`var_4w_pct` de `tendencia_producto()`.
+  - `/alertas [ciudad]` → lista de `alertas_precio()`.
+- Push diario: reutilizar el job del scheduler (§8) — después de `run_ingest()` + `make_snapshot()`, enviar `resumen_semanal()` a cada `chat_id` en `TELEGRAM_CHAT_IDS` en el mismo horario 06:00 America/Bogota.
+- El bot corre como proceso aparte: `python -m sipsa.telegram_bot` (documentar en README). Si `TELEGRAM_BOT_TOKEN` no está seteado, el proceso debe loguear un aviso claro y salir sin error fatal (no bloquear el resto del sistema).
+
+### 13.3 Checkpoint y aceptación adicionales
+- Bloque de plan **3:50–4:10 | Dashboard + bot Telegram** (ajustar el resto de tiempos de la sección 10 en ±10 min si hace falta). Checkpoint: `index.html` carga en el navegador y muestra datos reales desde `/v1/resumen-semanal`; `/hoy` en Telegram (con token de prueba o modo mock si no hay token real) devuelve el mismo texto que la API.
+- Criterio de aceptación 7: el dashboard funciona abriendo la app servida por FastAPI (`/`) sin pasos manuales adicionales, mostrando datos reales o de snapshot.
+- Criterio de aceptación 8: el bot de Telegram arranca sin token configurado sin tumbar el proceso principal (degradación controlada, solo loguea y sale).
+
 ## 12. Fuera de alcance
-Auth de usuarios, frontend, envío WhatsApp, ML, Docker, precios minoristas mensuales, más de 3 ciudades.
+Auth de usuarios, ML, Docker, precios minoristas mensuales, más de 3 ciudades, WhatsApp (se usa Telegram en su lugar).
