@@ -11,23 +11,19 @@ class Product(BaseModel):
     unidad_base: str
 
 
-class Market(BaseModel):
-    mercado_id: str
-    nombre: str
+class City(BaseModel):
     ciudad: str
 
 
 class PricePoint(BaseModel):
     fecha: date
-    precio_prom: float
-    precio_min: float | None
-    precio_max: float | None
+    precio: float
     fuente: str
 
 
 class PriceSeries(BaseModel):
     producto_id: str
-    mercado_id: str
+    ciudad: str
     unidad: Literal["COP/kg"] = "COP/kg"
     serie: list[PricePoint]
 
@@ -36,7 +32,7 @@ class OportunidadItem(BaseModel):
     producto_id: str
     nombre: str
     categoria: str
-    mercado_id: str
+    ciudad: str
     precio_actual: float
     precio_1w: float
     precio_4w: float
@@ -57,12 +53,12 @@ class Opportunities(BaseModel):
 
 class TrendPoint(BaseModel):
     fecha: date
-    precio_prom: float
+    precio: float
 
 
 class Trend(BaseModel):
     producto_id: str
-    mercado_id: str
+    ciudad: str
     serie: list[TrendPoint]
     var_1w_pct: float | None
     var_4w_pct: float | None
@@ -73,7 +69,7 @@ class Trend(BaseModel):
 
 class Forecast(BaseModel):
     producto_id: str
-    mercado_id: str
+    ciudad: str
     horizonte_semanas: int
     precio_actual: float
     precio_esperado: float
@@ -86,7 +82,7 @@ class Forecast(BaseModel):
 class AlertItem(BaseModel):
     producto_id: str
     nombre: str
-    mercado_id: str
+    ciudad: str
     var_pct: float
     direccion: Literal["SUBE", "BAJA"]
     precio_actual: float
@@ -108,8 +104,6 @@ class WeeklySummary(BaseModel):
 
 
 class Comparison(BaseModel):
-    mercado_id: str
     ciudad: str
     precio_actual: float
     var_1w_pct: float | None
-

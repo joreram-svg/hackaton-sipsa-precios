@@ -20,6 +20,7 @@ dependencies = [
   "pydantic>=2",
   "pydantic-settings>=2",
   "python-dotenv>=1",
+  "python-telegram-bot>=21,<23",
   "uvicorn>=0.30",
   "zeep>=4.3",
 ]
@@ -33,4 +34,3 @@ packages = ["src/sipsa"]
 [tool.pytest.ini_options]
 pythonpath = ["src"]
 testpaths = ["tests"]
-

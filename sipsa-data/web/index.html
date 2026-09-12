@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Señales semanales de precios mayoristas SIPSA por ciudad.">
+  <title>SIPSA · Tablero semanal</title>
+  <link rel="stylesheet" href="/styles.css">
+  <script src="/app.js" defer></script>
+</head>
+<body>
+  <header class="masthead">
+    <a class="brand" href="/" aria-label="SIPSA Data, inicio">
+      <span class="brand-mark" aria-hidden="true">S</span>
+      <span>SIPSA Data</span>
+    </a>
+    <p class="masthead-note">Precios mayoristas · actualización semanal</p>
+  </header>
+
+  <main>
+    <section class="market-board" aria-labelledby="page-title">
+      <div class="board-copy">
+        <h1 id="page-title">Qué conviene comprar esta semana</h1>
+        <p id="summary-text" class="summary-text" aria-live="polite">Cargando señales de precio…</p>
+      </div>
+      <form class="filters" aria-label="Filtros del resumen">
+        <label for="city">Ciudad</label>
+        <select id="city" name="ciudad">
+          <option value="Bogotá">Bogotá</option>
+        </select>
+        <label for="profile">Perfil</label>
+        <select id="profile" name="perfil">
+          <option value="consumidor">Consumidor</option>
+          <option value="restaurante">Restaurante</option>
+          <option value="mayorista">Mayorista</option>
+        </select>
+      </form>
+    </section>
+
+    <p id="error" class="error-message" role="alert" hidden></p>
+
+    <section class="signals-grid" aria-label="Recomendaciones">
+      <article class="signal-column signal-column--buy">
+        <header class="column-heading">
+          <span class="signal-icon" aria-hidden="true">↓</span>
+          <div><h2>Comprar</h2><p>Precios en momento favorable</p></div>
+        </header>
+        <div id="buy-list" class="card-list"></div>
+      </article>
+      <article class="signal-column signal-column--avoid">
+        <header class="column-heading">
+          <span class="signal-icon" aria-hidden="true">↑</span>
+          <div><h2>Evitar</h2><p>Precios en momento desfavorable</p></div>
+        </header>
+        <div id="avoid-list" class="card-list"></div>
+      </article>
+    </section>
+
+    <section class="detail-grid">
+      <article class="panel alerts-panel">
+        <header class="panel-heading"><h2>Movimientos fuertes</h2><p>Variaciones que superan 15%</p></header>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Producto</th><th>Dirección</th><th>Variación</th><th>Precio</th></tr></thead>
+            <tbody id="alerts-body"></tbody>
+          </table>
+        </div>
+        <p id="alerts-empty" class="empty-state" hidden>Sin alertas fuertes esta semana.</p>
+      </article>
+
+      <article class="panel trend-panel">
+        <header class="panel-heading"><h2>Seguir un producto</h2><p>Últimas 12 semanas</p></header>
+        <form id="trend-form" class="search-form">
+          <label for="product-search">Producto</label>
+          <div class="search-row">
+            <input id="product-search" name="producto" list="products" autocomplete="off" placeholder="Ej. Papa pastusa" required>
+            <datalist id="products"></datalist>
+            <button type="submit">Ver tendencia</button>
+          </div>
+        </form>
+        <div id="trend-result" class="trend-result" hidden>
+          <div class="trend-meta"><h3 id="trend-name"></h3><p id="trend-change"></p></div>
+          <svg id="sparkline" class="sparkline" viewBox="0 0 480 150" role="img" aria-label="Tendencia de precio"></svg>
+        </div>
+      </article>
+    </section>
+  </main>
+
+  <footer><p>Fuente: DANE SIPSA. Valores en COP/kg.</p></footer>
+</body>
+</html>

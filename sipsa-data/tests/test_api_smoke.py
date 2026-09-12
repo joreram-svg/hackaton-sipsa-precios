@@ -29,8 +29,8 @@ class FakeRepository:
 
     def price_history(self, producto_id, ciudad="Bogotá", desde=None, hasta=None, semanas=None):
         start = date(2025, 8, 4)
-        rows = [{"fecha": start + timedelta(weeks=i), "precio_prom": 2200.0 + i * 5,
-                 "precio_min": 2100.0, "precio_max": 2400.0, "fuente": "seed"} for i in range(58)]
+        rows = [{"fecha": start + timedelta(weeks=i), "precio": 2200.0 + i * 5,
+                 "fuente": "seed"} for i in range(58)]
         return rows[-semanas:] if semanas else rows
 
     def opportunities(self, city="Bogotá", categoria=None, perfil="consumidor", top=10, ascending=False):
@@ -39,7 +39,7 @@ class FakeRepository:
 
     def trend(self, producto_id, ciudad="Bogotá", semanas=12):
         return {"producto_id": producto_id, "ciudad": ciudad,
-                "serie": [{"fecha": date(2026, 9, 7), "precio_prom": 2400.0}],
+                "serie": [{"fecha": date(2026, 9, 7), "precio": 2400.0}],
                 "var_1w_pct": -0.04, "var_4w_pct": -0.1429, "var_52w_pct": 0.03,
                 "percentil_hist": 0.12, "pendiente_pct_sem": -1.2}
 
@@ -71,8 +71,11 @@ def test_todos_los_get_contractuales_responden_200():
         app.dependency_overrides.clear()
 
 
-def test_resumen_es_legible_corto_y_contiene_cinco_items_por_lado():
-    """Detecta un resumen no apto para Telegram o listas incompletas."""
+def test_resumen_es_legible_y_el_bot_reutiliza_el_mismo_texto_sin_exigir_token():
+    """Detecta divergencia REST/Telegram o un arranque fatal sin credencial."""
+    from sipsa.config import Settings
+    from sipsa.telegram_bot import main as bot_main, summary_text
+
     app.dependency_overrides[get_repo] = lambda: FakeRepository()
     try:
         payload = TestClient(app).get("/v1/resumen-semanal?ciudad=Bogot%C3%A1&perfil=restaurante").json()
@@ -80,6 +83,8 @@ def test_resumen_es_legible_corto_y_contiene_cinco_items_por_lado():
         assert len(payload["texto"]) <= 600
         assert "↑" in payload["texto"] and "↓" in payload["texto"]
         assert "**" not in payload["texto"]
+        assert summary_text(FakeRepository(), "Bogotá", "restaurante") == payload["texto"]
+        assert bot_main(Settings(telegram_bot_token="")) == 0
     finally:
         app.dependency_overrides.clear()
 
@@ -115,3 +120,34 @@ def test_mcp_registra_ocho_tools_y_mejores_precios_responde(monkeypatch):
     assert set(server.mcp.tools) == expected
     monkeypatch.setattr(server, "get_repository", lambda: FakeRepository())
     assert server.mejores_precios()["items"][0]["producto_id"] == "papa_pastusa"
+
+
+def test_resumen_degrada_a_snapshot_si_duckdb_no_responde():
+    """Detecta que una caída de DuckDB tumbe la ruta crítica de la demo."""
+    from scripts.make_snapshot import make_snapshot
+
+    make_snapshot()
+
+    class BrokenRepository:
+        def opportunities(self, *args, **kwargs):
+            raise OSError("database unavailable")
+
+    app.dependency_overrides[get_repo] = lambda: BrokenRepository()
+    try:
+        response = TestClient(app).get("/v1/resumen-semanal?ciudad=Bogot%C3%A1&perfil=consumidor")
+        assert response.status_code == 200
+        assert response.headers["X-Data-Mode"] == "snapshot"
+        assert response.json()["ciudad"] == "Bogotá"
+    finally:
+        app.dependency_overrides.clear()
+
+
+def test_dashboard_y_assets_se_sirven_desde_fastapi():
+    """Detecta que el montaje estático falte o intercepte las rutas API."""
+    client = TestClient(app)
+    page = client.get("/")
+    assert page.status_code == 200
+    assert page.headers["content-type"].startswith("text/html")
+    assert client.get("/styles.css").status_code == 200
+    assert client.get("/app.js").status_code == 200
+    assert client.get("/v1/health").status_code == 200

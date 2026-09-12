@@ -3,9 +3,11 @@ from pathlib import Path
 from uuid import uuid4
 
 import duckdb
+import pandas as pd
 
 from sipsa.config import Settings
-from sipsa.ingest.pipeline import initialize_database
+from sipsa.ingest.pipeline import initialize_database, run_ingest
+from sipsa.ingest.normalize import normalize_prices
 from sipsa.sources.seed import SeedAdapter
 
 
@@ -50,4 +52,64 @@ def test_initialize_database_migra_mercados_a_precio_promedio_por_ciudad():
         assert row[:4] == (date(2026, 9, 7), "papa_pastusa", "Bogotá", 2200.0)
         assert "dim_mercado" not in tables
     finally:
+        db_path.unlink(missing_ok=True)
+
+
+def test_normalize_mapea_unidades_agrega_mercados_y_registra_no_mapeados():
+    """Detecta precios sin convertir, duplicación por mercado o pérdida de no mapeados."""
+    unmapped_path = Path("data") / f"test-unmapped-{uuid4().hex}.csv"
+    raw = pd.DataFrame([
+        {"fecha": date(2026, 9, 9), "producto_raw": "Pápa Pastusa", "mercado_raw": "m1",
+         "ciudad_raw": "Bogotá", "precio_prom": 1000, "precio_min": None, "precio_max": None,
+         "unidad_raw": "kg", "fuente": "test"},
+        {"fecha": date(2026, 9, 9), "producto_raw": "papa negra", "mercado_raw": "m2",
+         "ciudad_raw": "Bogotá", "precio_prom": 600, "precio_min": None, "precio_max": None,
+         "unidad_raw": "lb", "fuente": "test"},
+        {"fecha": date(2026, 9, 9), "producto_raw": "Producto imposible", "mercado_raw": "m3",
+         "ciudad_raw": "Bogotá", "precio_prom": 999, "precio_min": None, "precio_max": None,
+         "unidad_raw": "kg", "fuente": "test"},
+    ])
+    try:
+        result = normalize_prices(raw, unmapped_path=unmapped_path)
+        assert result.to_dict("records") == [{
+            "fecha": date(2026, 9, 7), "producto_id": "papa_pastusa", "ciudad": "Bogotá",
+            "precio": 1100.0, "fuente": "test",
+        }]
+        assert pd.read_csv(unmapped_path)["producto_raw"].tolist() == ["Producto imposible"]
+    finally:
+        unmapped_path.unlink(missing_ok=True)
+
+
+def test_auto_conserva_filas_reales_y_completa_huecos_con_seed():
+    """Detecta que el fallback reemplace datos reales o deje el histórico incompleto."""
+    class ShortRealAdapter:
+        name = "real_test"
+
+        def available(self):
+            return True
+
+        def fetch_precios(self, desde, hasta):
+            monday = hasta - pd.Timedelta(days=hasta.weekday())
+            rows = []
+            for weeks, price in ((0, 1234), (1, 1200)):
+                rows.append({
+                    "fecha": monday - pd.Timedelta(weeks=weeks), "producto_raw": "papa pastusa",
+                    "mercado_raw": "m1", "ciudad_raw": "Bogotá", "precio_prom": price,
+                    "precio_min": None, "precio_max": None, "unidad_raw": "kg", "fuente": self.name,
+                })
+            return pd.DataFrame(rows)
+
+        def fetch_abastecimiento(self, desde, hasta):
+            return None
+
+    db_path = Path("data") / f"test-auto-{uuid4().hex}.duckdb"
+    try:
+        result = run_ingest("auto", Settings(db_path=db_path), adapters=[ShortRealAdapter()])
+        with duckdb.connect(str(db_path), read_only=True) as conn:
+            counts = dict(conn.execute("SELECT fuente,count(*) FROM fact_precio GROUP BY fuente").fetchall())
+        assert result["fuente"] == "real_test"
+        assert counts["real_test"] == 2
+        assert counts["seed"] == 104 * 40 * 3 - 2
+    finally:
+        Path(result["raw_file"]).unlink(missing_ok=True) if "result" in locals() else None
         db_path.unlink(missing_ok=True)

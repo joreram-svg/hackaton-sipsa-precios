@@ -1,27 +1,44 @@
+from contextlib import asynccontextmanager
 from datetime import date
 from typing import Literal
 
 from fastapi import Depends, FastAPI, Header, Query, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
+from fastapi.staticfiles import StaticFiles
+import duckdb
 
 from sipsa.analytics.forecast import forecast
 from sipsa.api.models import (
     Alerts,
+    City,
     Comparison,
     Forecast,
-    Market,
     Opportunities,
     PriceSeries,
     Product,
     Trend,
     WeeklySummary,
 )
-from sipsa.config import get_settings
+from sipsa.config import PROJECT_ROOT, get_settings
 from sipsa.db.repo import Repository
+from sipsa.service import build_weekly_summary
+from sipsa.snapshot import load_snapshot
 
 
-app = FastAPI(title="SIPSA Data", version="1.0.0")
+@asynccontextmanager
+async def lifespan(_: FastAPI):
+    from sipsa.scheduler import create_scheduler
+
+    scheduler = create_scheduler()
+    scheduler.start()
+    try:
+        yield
+    finally:
+        scheduler.shutdown(wait=False)
+
+
+app = FastAPI(title="SIPSA Data", version="1.0.0", lifespan=lifespan)
 
 
 def get_repo() -> Repository:
@@ -57,28 +74,34 @@ def productos(categoria: str | None = None, repo: Repository = Depends(get_repo)
     return repo.list_products(categoria)
 
 
-@app.get("/v1/mercados", response_model=list[Market])
-def mercados(ciudad: str | None = None, repo: Repository = Depends(get_repo)):
-    return repo.list_markets(ciudad)
+@app.get("/v1/ciudades", response_model=list[City])
+def ciudades(repo: Repository = Depends(get_repo)):
+    return repo.list_cities()
 
 
 @app.get("/v1/precios", response_model=PriceSeries)
 def precios(
     producto_id: str,
-    mercado_id: str | None = None,
+    ciudad: str = "Bogotá",
     desde: date | None = None,
     hasta: date | None = None,
     repo: Repository = Depends(get_repo),
 ):
-    mercado_id = mercado_id or repo.default_market()
-    serie = repo.price_history(producto_id, mercado_id, desde, hasta)
+    serie = repo.price_history(producto_id, ciudad, desde, hasta)
     if not serie:
         raise LookupError(f"Producto o serie no encontrada: {producto_id}")
-    return {"producto_id": producto_id, "mercado_id": mercado_id, "unidad": "COP/kg", "serie": serie}
+    return {"producto_id": producto_id, "ciudad": ciudad, "unidad": "COP/kg", "serie": serie}
 
 
 def _opportunities(repo, ciudad, categoria, perfil, top, ascending=False):
     return repo.opportunities(ciudad, categoria, perfil, top, ascending)
+
+
+def _snapshot_response(kind: str, ciudad: str, perfil: str) -> JSONResponse:
+    return JSONResponse(
+        content=load_snapshot(kind, ciudad, perfil),
+        headers={"X-Data-Mode": "snapshot"},
+    )
 
 
 @app.get("/v1/oportunidades", response_model=Opportunities)
@@ -89,7 +112,10 @@ def oportunidades(
     top: int = Query(10, ge=1, le=100),
     repo: Repository = Depends(get_repo),
 ):
-    return _opportunities(repo, ciudad, categoria, perfil, top)
+    try:
+        return _opportunities(repo, ciudad, categoria, perfil, top)
+    except (OSError, duckdb.Error):
+        return _snapshot_response("oportunidades", ciudad, perfil)
 
 
 @app.get("/v1/evitar", response_model=Opportunities)
@@ -106,22 +132,21 @@ def evitar(
 @app.get("/v1/tendencia/{producto_id}", response_model=Trend)
 def tendencia(
     producto_id: str,
-    mercado_id: str | None = None,
+    ciudad: str = "Bogotá",
     semanas: int = Query(12, ge=1, le=104),
     repo: Repository = Depends(get_repo),
 ):
-    return repo.trend(producto_id, mercado_id, semanas)
+    return repo.trend(producto_id, ciudad, semanas)
 
 
 @app.get("/v1/forecast/{producto_id}", response_model=Forecast)
 def pronostico(
     producto_id: str,
-    mercado_id: str | None = None,
+    ciudad: str = "Bogotá",
     horizonte: int = Query(2, ge=1, le=4),
     repo: Repository = Depends(get_repo),
 ):
-    mercado_id = mercado_id or repo.default_market()
-    return forecast(producto_id, mercado_id, horizonte, repo)
+    return forecast(producto_id, ciudad, horizonte, repo)
 
 
 @app.get("/v1/alertas", response_model=Alerts)
@@ -134,28 +159,16 @@ def alertas(
     return repo.alerts(ciudad, umbral_pct, ventana)
 
 
-def build_weekly_summary(repo, ciudad="Bogotá", perfil="consumidor") -> dict:
-    buy = repo.opportunities(ciudad, None, perfil, 5, False)
-    avoid = repo.opportunities(ciudad, None, perfil, 5, True)
-    alert_data = repo.alerts(ciudad, 15, "1w")
-    buy_names = ", ".join(item["nombre"] for item in buy["items"])
-    avoid_names = ", ".join(item["nombre"] for item in avoid["items"])
-    text = f"📊 SIPSA {ciudad}: ↑ Comprar: {buy_names}. ↓ Evitar: {avoid_names}."
-    if alert_data["alertas"]:
-        first = alert_data["alertas"][0]
-        text += f" Alerta: {first['nombre']} {first['direccion'].lower()} {abs(first['var_pct']) * 100:.0f}%."
-    return {"fecha": buy["fecha"], "ciudad": ciudad, "perfil": perfil,
-            "top_comprar": buy["items"], "top_evitar": avoid["items"],
-            "alertas": alert_data["alertas"], "texto": text[:600]}
-
-
 @app.get("/v1/resumen-semanal", response_model=WeeklySummary)
 def resumen_semanal(
     ciudad: str = "Bogotá",
     perfil: Literal["consumidor", "restaurante", "mayorista"] = "consumidor",
     repo: Repository = Depends(get_repo),
 ):
-    return build_weekly_summary(repo, ciudad, perfil)
+    try:
+        return build_weekly_summary(repo, ciudad, perfil)
+    except (OSError, duckdb.Error):
+        return _snapshot_response("resumen", ciudad, perfil)
 
 
 @app.get("/v1/comparar", response_model=list[Comparison])
@@ -180,6 +193,9 @@ def admin_ingest():
 
 @app.post("/v1/admin/snapshot", dependencies=[Depends(require_admin)])
 def admin_snapshot():
-    from scripts.make_snapshot import make_snapshot
+    from sipsa.snapshot import make_snapshot
 
     return {"archivos": make_snapshot()}
+
+
+app.mount("/", StaticFiles(directory=PROJECT_ROOT / "web", html=True), name="web")

@@ -21,6 +21,8 @@ class Settings(BaseSettings):
     api_port: int = 8000
     mcp_port: int = 8001
     tz: str = "America/Bogota"
+    telegram_bot_token: str = ""
+    telegram_chat_ids: str = ""
 
     @property
     def source_names(self) -> list[str]:
@@ -30,8 +32,11 @@ class Settings(BaseSettings):
     def city_names(self) -> list[str]:
         return [value.strip() for value in self.ciudades.split(",") if value.strip()]
 
+    @property
+    def telegram_chat_id_values(self) -> list[int]:
+        return [int(value.strip()) for value in self.telegram_chat_ids.split(",") if value.strip()]
+
 
 @lru_cache
 def get_settings() -> Settings:
     return Settings()
-

@@ -1,3 +1,4 @@
+import logging
 from datetime import date, datetime, timedelta
 from pathlib import Path
 from uuid import uuid4
@@ -6,10 +7,15 @@ import duckdb
 import pandas as pd
 
 from sipsa.config import PROJECT_ROOT, Settings, get_settings
+from sipsa.ingest.normalize import normalize_prices
+from sipsa.sources.excel_dane import ExcelDaneAdapter
 from sipsa.sources.seed import SeedAdapter
+from sipsa.sources.soap_dane import SoapDaneAdapter
+from sipsa.sources.socrata import SocrataAdapter
 
 
 VIEW_NAMES = ("v_tendencia", "v_percentil", "v_variacion", "v_ultima_semana")
+LOGGER = logging.getLogger(__name__)
 
 
 def _columns(conn, table: str) -> set[str]:
@@ -56,7 +62,50 @@ def initialize_database(settings: Settings | None = None) -> None:
         conn.execute((PROJECT_ROOT / "src" / "sipsa" / "db" / "views.sql").read_text(encoding="utf-8"))
 
 
-def run_ingest(source: str = "seed", settings: Settings | None = None) -> dict:
+def _configured_adapters(settings: Settings) -> list:
+    factories = {
+        "excel_dane": lambda: ExcelDaneAdapter(Path(settings.db_path).parent / "raw"),
+        "soap_dane": SoapDaneAdapter,
+        "socrata": lambda: SocrataAdapter(settings.socrata_dataset_id),
+        "seed": SeedAdapter,
+    }
+    return [factories[name]() for name in settings.source_names if name in factories]
+
+
+def _select_rows(source: str, settings: Settings, desde: date, hasta: date, adapters: list | None):
+    seed_raw = SeedAdapter().fetch_precios(desde, hasta)
+    seed_rows = normalize_prices(seed_raw)
+    if source == "seed":
+        return seed_rows, seed_raw, "seed", []
+
+    errors = []
+    for adapter in adapters if adapters is not None else _configured_adapters(settings):
+        if adapter.name == "seed":
+            continue
+        try:
+            if not adapter.available():
+                errors.append(f"{adapter.name}: no disponible")
+                continue
+            raw = adapter.fetch_precios(desde, hasta)
+            real_rows = normalize_prices(raw)
+            real_rows = real_rows[real_rows["ciudad"].isin(settings.city_names)]
+            if real_rows.empty:
+                errors.append(f"{adapter.name}: sin filas normalizadas")
+                continue
+            combined = pd.concat([real_rows, seed_rows], ignore_index=True)
+            combined = combined.drop_duplicates(["fecha", "producto_id", "ciudad"], keep="first")
+            return combined, raw, adapter.name, errors
+        except Exception as exc:  # cada fuente externa debe degradar a la siguiente
+            LOGGER.warning("Fuente %s no disponible: %s", adapter.name, exc)
+            errors.append(f"{adapter.name}: {type(exc).__name__}: {exc}")
+    return seed_rows, seed_raw, "seed", errors
+
+
+def run_ingest(
+    source: str = "seed",
+    settings: Settings | None = None,
+    adapters: list | None = None,
+) -> dict:
     settings = settings or get_settings()
     initialize_database(settings)
     run_id = str(uuid4())
@@ -64,20 +113,12 @@ def run_ingest(source: str = "seed", settings: Settings | None = None) -> dict:
     hasta = date.today()
     desde = hasta - timedelta(weeks=settings.hist_weeks - 1, days=6)
     if source not in {"seed", "auto"}:
-        raise ValueError(f"Fuente no soportada todavía: {source}")
-    adapter = SeedAdapter()
-    raw = adapter.fetch_precios(desde, hasta)
-    normalized = raw.rename(
-        columns={"producto_raw": "producto_id", "ciudad_raw": "ciudad", "precio_prom": "precio"}
-    )
-    rows = (
-        normalized[["fecha", "producto_id", "ciudad", "precio", "fuente"]]
-        .groupby(["fecha", "producto_id", "ciudad", "fuente"], as_index=False)["precio"]
-        .mean()
-    )
-    raw_dir = PROJECT_ROOT / "data" / "raw"
+        raise ValueError(f"Fuente no soportada: {source}")
+    rows, raw, active_source, errors = _select_rows(source, settings, desde, hasta, adapters)
+    raw_dir = Path(settings.db_path).parent / "raw"
     raw_dir.mkdir(parents=True, exist_ok=True)
-    rows.to_parquet(raw_dir / f"precios_{run_id}.parquet", index=False)
+    raw_file = raw_dir / f"precios_{run_id}.parquet"
+    raw.to_parquet(raw_file, index=False)
     with duckdb.connect(str(settings.db_path)) as conn:
         conn.register("incoming", rows)
         existing = conn.execute(
@@ -93,6 +134,14 @@ def run_ingest(source: str = "seed", settings: Settings | None = None) -> dict:
         inserted = len(rows) - existing
         conn.execute(
             "INSERT INTO ingest_log VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'ok', NULL)",
-            [run_id, started, datetime.now(), adapter.name, inserted, existing, rows.fecha.min(), rows.fecha.max()],
+            [run_id, started, datetime.now(), active_source, inserted, existing, rows.fecha.min(), rows.fecha.max()],
         )
-    return {"run_id": run_id, "status": "ok", "filas_insertadas": inserted, "filas_actualizadas": existing, "fuente": adapter.name}
+    return {
+        "run_id": run_id,
+        "status": "ok",
+        "filas_insertadas": inserted,
+        "filas_actualizadas": existing,
+        "fuente": active_source,
+        "source_errors": errors,
+        "raw_file": str(raw_file),
+    }
