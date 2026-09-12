@@ -39,7 +39,7 @@ button:focus-visible, input:focus-visible, select:focus-visible, a:focus-visible
 }
 
 .brand { display: flex; gap: 10px; align-items: center; color: inherit; font-weight: 800; text-decoration: none; }
-.brand-mark { display: grid; place-items: center; width: 34px; height: 34px; color: var(--white); background: var(--ink); border-radius: 50% 50% 50% 12%; }
+.brand-mark { display: block; height: 28px; width: auto; }
 .masthead-note { margin: 0; color: var(--muted); font-size: .9rem; }
 
 main { max-width: 1180px; margin: 0 auto; padding: 0 28px 52px; }
