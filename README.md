@@ -70,6 +70,15 @@ print(snapshot["cheap_today"])
 
 Sin estos datos, las funciones principales corren, pero las comparaciones, canastas y sustitutos tendrán precisión limitada.
 
+## Recomendaciones condensadas
+
+`scripts/materialize_condensed_recommendations.py` toma las recomendaciones materializadas por perfil, fecha y ciudad, y escribe un texto único en `rec_condensada_consumidor`, `rec_condensada_tendero` y `rep_condensada_restaurante`. La redacción es determinística y trazable a los productos de origen; no usa IA.
+
+```bash
+python -m pip install -e ".[postgres]"
+python scripts/materialize_condensed_recommendations.py
+```
+
 ## Priorización aplicada
 
 El núcleo implementado resuelve primero decisión de compra y abastecimiento: ranking de precios, caídas/alertas, canastas, comparación de mercados, sustitutos y forecast. Las recomendaciones de menú se ordenan por costo de ingredientes disponible.
