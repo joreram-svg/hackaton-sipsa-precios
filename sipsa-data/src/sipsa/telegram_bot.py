@@ -2,8 +2,8 @@ import asyncio
 import logging
 import unicodedata
 
-from telegram import Bot, Update
-from telegram.ext import Application, CommandHandler, ContextTypes
+from telegram import Bot, InlineKeyboardButton, InlineKeyboardMarkup, Update
+from telegram.ext import Application, CallbackQueryHandler, CommandHandler, ContextTypes
 
 from sipsa.config import Settings, get_settings
 from sipsa.db.repo import Repository
@@ -86,13 +86,83 @@ def recomendaciones_text(ciudad: str, perfil: str, settings: Settings | None = N
     return "\n".join(lines)
 
 
+PROFILE_LABELS = {
+    "consumidor": "🛒 Consumidor",
+    "restaurante": "🍽️ Restaurante",
+    "mayorista": "🏪 Tendero/Mayorista",
+}
+
+
+def _profile_menu() -> InlineKeyboardMarkup:
+    buttons = [
+        [InlineKeyboardButton(label, callback_data=f"perfil:{key}")]
+        for key, label in PROFILE_LABELS.items()
+    ]
+    return InlineKeyboardMarkup(buttons)
+
+
+def _city_menu(perfil: str, settings: Settings | None = None) -> InlineKeyboardMarkup:
+    settings = settings or get_settings()
+    cities = settings.city_names or ["Bogotá", "Medellín", "Cali"]
+    rows = []
+    for i in range(0, len(cities), 2):
+        pair = cities[i : i + 2]
+        rows.append(
+            [InlineKeyboardButton(city, callback_data=f"ciudad:{perfil}:{city}") for city in pair]
+        )
+    rows.append([InlineKeyboardButton("⬅️ Cambiar perfil", callback_data="menu:home")])
+    return InlineKeyboardMarkup(rows)
+
+
+def _result_menu(perfil: str) -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(
+        [
+            [InlineKeyboardButton("🏙️ Otra ciudad", callback_data=f"perfil:{perfil}")],
+            [InlineKeyboardButton("⬅️ Cambiar perfil", callback_data="menu:home")],
+        ]
+    )
+
+
 async def start_command(update: Update, _: ContextTypes.DEFAULT_TYPE) -> None:
     if update.effective_message:
         await update.effective_message.reply_text(
-            "Hola. Soy SIPSA Data. Usa /hoy [ciudad] [perfil], "
-            "/precio <producto>, /alertas [ciudad] o "
-            "/recomendaciones [ciudad] [consumidor|restaurante|mayorista]."
+            "Hola, soy Baskio 🧺. Elige tu perfil para ver recomendaciones "
+            "de precios reales por ciudad:",
+            reply_markup=_profile_menu(),
         )
+
+
+async def menu_callback(update: Update, _: ContextTypes.DEFAULT_TYPE) -> None:
+    query = update.callback_query
+    if not query:
+        return
+    await query.answer()
+    await query.edit_message_text(
+        "Elige tu perfil para ver recomendaciones de precios reales por ciudad:",
+        reply_markup=_profile_menu(),
+    )
+
+
+async def perfil_callback(update: Update, _: ContextTypes.DEFAULT_TYPE) -> None:
+    query = update.callback_query
+    if not query or not query.data:
+        return
+    await query.answer()
+    perfil = query.data.split(":", 1)[1]
+    await query.edit_message_text(
+        f"Perfil: {PROFILE_LABELS.get(perfil, perfil)}\nAhora elige tu ciudad:",
+        reply_markup=_city_menu(perfil),
+    )
+
+
+async def ciudad_callback(update: Update, _: ContextTypes.DEFAULT_TYPE) -> None:
+    query = update.callback_query
+    if not query or not query.data:
+        return
+    await query.answer()
+    _, perfil, ciudad = query.data.split(":", 2)
+    text = recomendaciones_text(ciudad, perfil)
+    await query.edit_message_text(text, reply_markup=_result_menu(perfil))
 
 
 async def hoy_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -166,10 +236,14 @@ def build_application(settings: Settings | None = None) -> Application:
     settings = settings or get_settings()
     application = Application.builder().token(settings.telegram_bot_token).build()
     application.add_handler(CommandHandler("start", start_command))
+    application.add_handler(CommandHandler("menu", start_command))
     application.add_handler(CommandHandler("hoy", hoy_command))
     application.add_handler(CommandHandler("precio", precio_command))
     application.add_handler(CommandHandler("alertas", alertas_command))
     application.add_handler(CommandHandler("recomendaciones", recomendaciones_command))
+    application.add_handler(CallbackQueryHandler(menu_callback, pattern=r"^menu:"))
+    application.add_handler(CallbackQueryHandler(perfil_callback, pattern=r"^perfil:"))
+    application.add_handler(CallbackQueryHandler(ciudad_callback, pattern=r"^ciudad:"))
     return application
 
 
